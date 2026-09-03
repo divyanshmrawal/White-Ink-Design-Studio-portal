@@ -243,6 +243,11 @@ export const api = {
       body: JSON.stringify({ status }),
     }),
 
+  approveTask: (id: string) =>
+    request<Task>(`/tasks/${id}/approve`, {
+      method: 'PATCH',
+    }),
+
   updateTaskProgress: (id: string, progress: number) =>
     request<Task>(`/tasks/${id}/progress`, {
       method: 'PATCH',

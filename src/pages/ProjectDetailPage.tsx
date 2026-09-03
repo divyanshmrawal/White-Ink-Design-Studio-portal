@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ProjectModal } from '../components/projects/ProjectModal';
 import { TaskModal } from '../components/tasks/TaskModal';
+import { ClientTaskDetailModal } from '../components/tasks/ClientTaskDetailModal';
 import {
   ArrowLeft,
   Calendar,
@@ -58,12 +59,14 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
+  const [clientViewTask, setClientViewTask] = useState<Task | null>(null);
 
   // Add Member Modal
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [selectedNewMemberId, setSelectedNewMemberId] = useState('');
 
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const isClient = user?.role === 'CLIENT';
 
   const loadProjectDetails = useCallback(async () => {
     setIsLoading(true);
@@ -362,7 +365,8 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
               project.tasks.map((task) => (
                 <div
                   key={task.id}
-                  className="p-4 sm:p-5 hover:bg-gold-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                  onClick={isClient ? () => setClientViewTask(task) : undefined}
+                  className={`p-4 sm:p-5 hover:bg-gold-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4${isClient ? ' cursor-pointer' : ''}`}
                 >
                   <div className="space-y-1.5 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -402,22 +406,26 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                       <ProgressBar progress={task.progress} size="sm" />
                     </div>
 
-                    <select
-                      value={task.status}
-                      onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}
-                      className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black cursor-pointer focus:ring-1 focus:ring-gold-500"
-                    >
-                      <option value="TODO">To Do</option>
-                      <option value="IN_PROGRESS">In Progress</option>
-                      <option value="REVIEW">Review</option>
-                      <option value="COMPLETED">Completed</option>
-                    </select>
+                    {!isClient && (
+                      <select
+                        value={task.status}
+                        onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black cursor-pointer focus:ring-1 focus:ring-gold-500"
+                      >
+                        <option value="TODO">To Do</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="REVIEW">Review</option>
+                        <option value="COMPLETED">Completed</option>
+                      </select>
+                    )}
 
                     {canManage && (
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setEditingTask(task);
                             setIsTaskModalOpen(true);
                           }}
@@ -427,7 +435,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeletingTask(task)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingTask(task);
+                          }}
                           className="p-1 text-black/60 hover:text-rose-700 hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -789,6 +800,23 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Client Task Detail Modal */}
+      {clientViewTask && isClient && (
+        <ClientTaskDetailModal
+          task={clientViewTask}
+          onClose={() => setClientViewTask(null)}
+          onApproved={() => {
+            setClientViewTask(null);
+            loadProjectDetails();
+          }}
+          onRequestChanges={(task) => {
+            // Placeholder: next prompt will wire the Request Changes form
+            setClientViewTask(null);
+            alert(`Request Changes flow for "${task.title}" — coming next!`);
+          }}
+        />
       )}
 
       {/* Delete Task Confirmation */}

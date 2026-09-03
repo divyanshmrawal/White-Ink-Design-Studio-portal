@@ -211,6 +211,57 @@ tasksRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
   }
 });
 
+// PATCH /api/tasks/:id/approve (CLIENT role only)
+tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
+  const { id } = req.params;
+
+  if (currentUser.role !== 'CLIENT') {
+    return res.status(403).json({ message: 'Only clients can approve tasks.' });
+  }
+
+  const task = db.getTaskById(id);
+  if (!task) {
+    return res.status(404).json({ message: 'Task not found.' });
+  }
+
+  // Verify the task belongs to a project owned by this client
+  const project = db.getProjectById(task.projectId);
+  if (!project) {
+    return res.status(404).json({ message: 'Associated project not found.' });
+  }
+  const client = db.getClientById(project.clientId);
+  if (!client || client.email.toLowerCase() !== currentUser.email.toLowerCase()) {
+    return res.status(403).json({ message: 'Forbidden: This task does not belong to your project.' });
+  }
+
+  const updated = db.updateTask(id, { status: 'COMPLETED' });
+
+  // Log activity
+  db.logActivity({
+    userId: currentUser.id,
+    action: 'TASK_APPROVED',
+    entityType: 'TASK',
+    entityId: id,
+    details: `Client approved task "${task.title}"`,
+  });
+
+  // Notify assigned team member
+  if (task.assignedToId) {
+    db.createNotification({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: task.assignedToId,
+      title: 'Task Approved by Client',
+      message: `The client has approved your task: "${task.title}"`,
+      type: 'TASK_STATUS',
+      linkUrl: `/projects/${task.projectId}`,
+      isRead: false,
+    });
+  }
+
+  return res.json(updated);
+});
+
 // PATCH /api/tasks/:id/status (Kanban & quick status toggle)
 tasksRouter.patch('/:id/status', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
