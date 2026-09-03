@@ -1,0 +1,6 @@
+{
+  "name": "White Ink Business Portal",
+  "description": "Enterprise business management portal with HR operations, attendance tracking, leaves, SOPs, performance reviews, activity logs, team chat, projects, and administrative controls.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

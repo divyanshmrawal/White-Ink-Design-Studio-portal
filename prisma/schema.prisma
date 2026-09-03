@@ -1,0 +1,468 @@
+// Prisma Schema for Project Management System
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEAM_MEMBER
+  CLIENT
+}
+
+enum ProjectStatus {
+  PENDING
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ProjectPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  ON_LEAVE
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_STATUS
+  PROJECT_ASSIGNED
+  MILESTONE_DUE
+  APPROVAL_REQUESTED
+  APPROVAL_RESOLVED
+  ATTENDANCE_ALERT
+  LEAVE_REQUESTED
+  LEAVE_RESOLVED
+  PERFORMANCE_REVIEW
+  CHAT_MENTION
+  GENERAL
+}
+
+model User {
+  id           String          @id @default(uuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  role         Role            @default(TEAM_MEMBER)
+  profileImage String?
+  fcmToken     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  createdProjects   Project[]        @relation("ProjectCreator")
+  projectMembers    ProjectMember[]
+  createdTasks      Task[]           @relation("TaskCreator")
+  assignedTasks     Task[]           @relation("TaskAssignee")
+  comments          Comment[]
+  attendances       Attendance[]
+  notifications     Notification[]
+  requestedApprovals ClientApproval[] @relation("ApprovalRequester")
+  reviewedApprovals ClientApproval[] @relation("ApprovalReviewer")
+  leaves            LeaveRequest[]   @relation("EmployeeLeaves")
+  approvedLeaves    LeaveRequest[]   @relation("ApprovedLeaves")
+  sopDocuments      SOPDocument[]    @relation("SOPAuthor")
+  employeeReviews   PerformanceReview[] @relation("EmployeeReviews")
+  createdReviews    PerformanceReview[] @relation("ReviewerReviews")
+  activityLogs      ActivityLog[]
+  chatMessages      ChatMessage[]
+  scheduleOverrides EmployeeScheduleOverride[]
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+model Client {
+  id        String    @id @default(uuid())
+  name      String
+  company   String
+  email     String    @unique
+  phone     String?
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  projects  Project[]
+
+  @@map("clients")
+}
+
+model Project {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  clientId    String
+  createdById String
+  startDate   DateTime?
+  dueDate     DateTime?
+  status      ProjectStatus   @default(PLANNING)
+  priority    ProjectPriority @default(MEDIUM)
+  progress    Int             @default(0) // 0-100
+  estimatedBudget Float?
+  leadOwnerId     String?
+  preferredMeetingTime DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  client      Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdBy   User            @relation("ProjectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  members     ProjectMember[]
+  tasks       Task[]
+  comments    Comment[]
+  milestones  Milestone[]
+  approvals   ClientApproval[]
+
+  @@map("projects")
+}
+
+model ProjectMember {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  projectId   String
+  assignedToId String?
+  createdById String
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  progress    Int          @default(0) // 0-100
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignedTo  User?        @relation("TaskAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  comments    Comment[]
+
+  @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  userId    String
+  projectId String?
+  taskId    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Attendance {
+  id                      String           @id @default(uuid())
+  userId                  String
+  date                    String           // Format: YYYY-MM-DD
+  clockIn                 DateTime?
+  clockOut                DateTime?
+  status                  AttendanceStatus @default(PRESENT)
+  totalWorkingMinutes     Int              @default(0)
+  totalBreakMinutes       Int              @default(0)
+  effectiveWorkingMinutes Int              @default(0)
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+
+  user                    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  breaks                  Break[]
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+  @@map("attendances")
+}
+
+model Break {
+  id              String     @id @default(uuid())
+  attendanceId    String
+  startTime       DateTime
+  endTime         DateTime?
+  durationMinutes Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  attendance      Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  @@index([attendanceId])
+  @@map("breaks")
+}
+
+model Milestone {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  projectId   String
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PENDING)
+  progress    Int             @default(0) // 0-100
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  project     Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("milestones")
+}
+
+model ClientApproval {
+  id             String         @id @default(uuid())
+  title          String
+  description    String?
+  projectId      String
+  deliverableUrl String?
+  status         ApprovalStatus @default(PENDING)
+  requestedById  String
+  reviewedById   String?
+  reviewedAt     DateTime?
+  comments       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  requestedBy    User           @relation("ApprovalRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  reviewedBy     User?          @relation("ApprovalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("client_approvals")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType @default(GENERAL)
+  linkUrl   String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  ANNUAL
+  UNPAID
+  EMERGENCY
+  MATERNITY_PATERNITY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  userId          String
+  leaveType       LeaveType   @default(CASUAL)
+  startDate       String      // YYYY-MM-DD
+  endDate         String      // YYYY-MM-DD
+  totalDays       Float       @default(1.0)
+  reason          String
+  isBackdated     Boolean     @default(false)
+  status          LeaveStatus @default(PENDING)
+  approvedById    String?
+  rejectionReason String?
+  reviewedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User        @relation("EmployeeLeaves", fields: [userId], references: [id], onDelete: Cascade)
+  approvedBy      User?       @relation("ApprovedLeaves", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+model SOPDocument {
+  id          String   @id @default(uuid())
+  title       String
+  category    String   @default("General")
+  content     String
+  version     String   @default("1.0")
+  tags        String?  // Comma-separated or JSON string
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User     @relation("SOPAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([category])
+  @@map("sop_documents")
+}
+
+enum ReviewStatus {
+  DRAFT
+  PUBLISHED
+  ACKNOWLEDGED
+}
+
+model PerformanceReview {
+  id           String       @id @default(uuid())
+  employeeId   String
+  reviewerId   String
+  reviewPeriod String       // e.g. "Q1 2026", "August 2026"
+  score        Float        // 1.0 to 5.0 or 0 to 100
+  strengths    String
+  improvements String
+  notes        String?
+  status       ReviewStatus @default(PUBLISHED)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  employee     User         @relation("EmployeeReviews", fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer     User         @relation("ReviewerReviews", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([reviewPeriod])
+  @@map("performance_reviews")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String   // e.g. "USER_LOGIN", "TASK_CREATED", "LEAVE_APPLIED", "CLOCK_IN"
+  entityType String   // e.g. "AUTH", "TASK", "LEAVE", "ATTENDANCE", "PROJECT"
+  entityId   String?
+  details    String?  // JSON string or descriptive summary
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  senderId    String
+  channel     String   @default("general")
+  content     String
+  attachments String?  // JSON string if any
+  isDeleted   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([channel])
+  @@index([createdAt])
+  @@map("chat_messages")
+}
+
+model SystemSettings {
+  id                    String   @id @default("system_config")
+  officeStartTime       String   @default("09:30") // HH:mm
+  officeEndTime         String   @default("18:30") // HH:mm
+  lateThresholdMinutes  Int      @default(15)     // Grace period in minutes
+  maxBreakMinutes       Int      @default(60)     // Maximum daily break minutes
+  defaultLeaveAllowance Int      @default(20)     // Default leaves per year
+  taskRules             String?  // JSON string for task completion rules
+  reasonsList           String?  // JSON string array of standard late/leave reasons
+  meetingLink           String?  // Configurable client meeting link
+  updatedAt             DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model EmployeeScheduleOverride {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  customStartTime String   // HH:mm
+  customEndTime   String   // HH:mm
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("employee_schedule_overrides")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  authKey   String
+  p256dhKey String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+
+

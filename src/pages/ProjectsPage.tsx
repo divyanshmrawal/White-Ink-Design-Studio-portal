@@ -1,0 +1,349 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { Project, Client, User, ProjectStatus, ProjectPriority } from '../types';
+import { api } from '../services/api';
+import { StatusBadge } from '../components/common/StatusBadge';
+import { PriorityBadge } from '../components/common/PriorityBadge';
+import { ProgressBar } from '../components/common/ProgressBar';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { EmptyState } from '../components/common/EmptyState';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { ProjectModal } from '../components/projects/ProjectModal';
+import { ClientProjectRequestModal } from '../components/projects/ClientProjectRequestModal';
+import {
+  FolderKanban,
+  Search,
+  Plus,
+  Building2,
+  Calendar,
+  MoreVertical,
+  Edit2,
+  Trash2,
+  ArrowRight,
+  Filter,
+  CheckCircle2,
+} from 'lucide-react';
+
+interface ProjectsPageProps {
+  onNavigateToProject: (id: string) => void;
+  openCreateModalDirectly?: boolean;
+}
+
+export const ProjectsPage: React.FC<ProjectsPageProps> = ({
+  onNavigateToProject,
+  openCreateModalDirectly = false,
+}) => {
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Filters
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [priorityFilter, setPriorityFilter] = useState('ALL');
+
+  // Modals
+  const [isModalOpen, setIsModalOpen] = useState(openCreateModalDirectly);
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [projectsData, clientsData, usersData] = await Promise.all([
+        api.getProjects({ search, status: statusFilter, priority: priorityFilter }),
+        api.getClients(),
+        canManage ? api.getUsers() : Promise.resolve([]),
+      ]);
+      setProjects(projectsData);
+      setClients(clientsData);
+      setTeamMembers(usersData.filter((u) => u.role !== 'CLIENT'));
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [search, statusFilter, priorityFilter, canManage]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleDeleteProject = async () => {
+    if (!deletingProject) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteProject(deletingProject.id);
+      setDeletingProject(null);
+      await loadData();
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-black">Projects</h1>
+          <p className="text-sm text-black/70 font-medium">
+            Manage deliverables, assign team members, and monitor progress metrics
+          </p>
+        </div>
+
+        {canManage && (
+          <button
+            type="button"
+            onClick={() => {
+              setEditingProject(null);
+              setIsModalOpen(true);
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 border border-gold-600 text-black text-sm font-bold rounded-lg shadow-sm transition-colors shrink-0 cursor-pointer btn-hover-lift"
+          >
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            Create Project
+          </button>
+        )}
+
+        {user?.role === 'CLIENT' && (
+          <button
+            type="button"
+            onClick={() => setIsClientModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 border border-gold-600 text-black text-sm font-bold rounded-lg shadow-sm transition-colors shrink-0 cursor-pointer btn-hover-lift"
+          >
+            <Plus className="h-4 w-4 stroke-[2.5]" />
+            Create New Project
+          </button>
+        )}
+      </div>
+
+      {/* Filters Toolbar */}
+      <div className="bg-white p-3.5 rounded-xl border border-gold-300 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+        {/* Search */}
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-black/40" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search projects..."
+            className="w-full pl-9 pr-3.5 py-1.5 text-xs sm:text-sm bg-white border border-gold-300 rounded-lg text-black font-medium placeholder-black/40 focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+          />
+        </div>
+
+        {/* Status & Priority dropdowns */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-1/2 sm:w-auto px-3 py-1.5 text-xs font-semibold bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="PENDING">Pending Setup</option>
+            <option value="PLANNING">Planning</option>
+            <option value="ACTIVE">Active</option>
+            <option value="ON_HOLD">On Hold</option>
+            <option value="COMPLETED">Completed</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="w-1/2 sm:w-auto px-3 py-1.5 text-xs font-semibold bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
+          >
+            <option value="ALL">All Priorities</option>
+            <option value="URGENT">Urgent</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Projects Grid */}
+      {isLoading ? (
+        <LoadingSpinner message="Fetching projects catalog..." />
+      ) : projects.length === 0 ? (
+        <EmptyState
+          title="No projects found"
+          description="No projects match your current filters. Create a new project to start tracking work."
+          icon={FolderKanban}
+          actionLabel={canManage ? 'Create Project' : user?.role === 'CLIENT' ? 'Create New Project' : undefined}
+          onAction={() => {
+            if (canManage) {
+              setEditingProject(null);
+              setIsModalOpen(true);
+            } else if (user?.role === 'CLIENT') {
+              setIsClientModalOpen(true);
+            }
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {projects.map((project) => (
+            <div
+              key={project.id}
+              className="bg-white rounded-xl border border-gold-300 shadow-sm hover:border-gold-500 transition-all flex flex-col justify-between overflow-hidden group card-hover-lift"
+            >
+              <div className="p-5 space-y-4">
+                {/* Top badges & actions */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <StatusBadge status={project.status} size="sm" />
+                    <PriorityBadge priority={project.priority} size="sm" />
+                  </div>
+
+                  {canManage && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingProject(project);
+                          setIsModalOpen(true);
+                        }}
+                        className="p-1 text-black/60 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
+                        title="Edit Project"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletingProject(project);
+                        }}
+                        className="p-1 text-black/60 hover:text-rose-700 hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Project Title & Client */}
+                <div>
+                  <h3
+                    onClick={() => onNavigateToProject(project.id)}
+                    className="text-base font-bold text-black group-hover:text-gold-700 transition-colors cursor-pointer"
+                  >
+                    {project.name}
+                  </h3>
+                  <p className="text-xs text-black/70 flex items-center gap-1.5 mt-1 font-medium">
+                    <Building2 className="h-3.5 w-3.5 text-gold-600" />
+                    <span className="font-semibold text-black">
+                      {project.client?.company || project.client?.name || 'Client Org'}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Description */}
+                {project.description && (
+                  <p className="text-xs text-black/80 line-clamp-2 leading-relaxed">
+                    {project.description}
+                  </p>
+                )}
+
+                {/* Progress bar */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-black/70 font-semibold">Calculated Progress</span>
+                    <span className="font-extrabold text-black">{project.progress}%</span>
+                  </div>
+                  <ProgressBar progress={project.progress} size="md" />
+                </div>
+              </div>
+
+              {/* Card Footer */}
+              <div className="px-5 py-3 bg-gold-50/70 border-t border-gold-200 flex items-center justify-between gap-3 text-xs">
+                {/* Team avatar stack */}
+                <div className="flex items-center -space-x-1.5 overflow-hidden">
+                  {project.members && project.members.length > 0 ? (
+                    project.members.slice(0, 4).map((member) => (
+                      <img
+                        key={member.id}
+                        src={
+                          member.profileImage ||
+                          `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                            member.name
+                          )}`
+                        }
+                        alt={member.name}
+                        title={`${member.name} (${member.role})`}
+                        className="inline-block h-6 w-6 rounded-full ring-2 ring-white object-cover"
+                      />
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-black/50 font-medium">No members</span>
+                  )}
+                  {project.members && project.members.length > 4 && (
+                    <span className="h-6 w-6 rounded-full bg-gold-200 text-black font-bold text-[10px] flex items-center justify-center ring-2 ring-white">
+                      +{project.members.length - 4}
+                    </span>
+                  )}
+                </div>
+
+                {/* Due Date & Open link */}
+                <div className="flex items-center gap-3">
+                  {project.dueDate && (
+                    <span className="text-black/70 text-[11px] font-semibold flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-gold-600" />
+                      {new Date(project.dueDate).toLocaleDateString()}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => onNavigateToProject(project.id)}
+                    className="p-1 text-black hover:text-gold-700 font-bold cursor-pointer"
+                    title="View Project Details"
+                  >
+                    <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Create / Edit Project Modal (Admin / Team) */}
+      <ProjectModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={loadData}
+        project={editingProject}
+        clients={clients}
+        teamMembers={teamMembers}
+      />
+
+      {/* Client Project Request Modal (CLIENT role) */}
+      <ClientProjectRequestModal
+        isOpen={isClientModalOpen}
+        onClose={() => setIsClientModalOpen(false)}
+        onSuccess={loadData}
+      />
+
+      {/* Delete Confirmation */}
+      <ConfirmDialog
+        isOpen={Boolean(deletingProject)}
+        onClose={() => setDeletingProject(null)}
+        onConfirm={handleDeleteProject}
+        title="Delete Project?"
+        message={`Are you sure you want to delete "${deletingProject?.name}"? All associated tasks, member assignments, and comments will be permanently removed.`}
+        confirmLabel="Delete Project"
+        isLoading={isDeleting}
+      />
+    </div>
+  );
+};

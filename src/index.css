@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold-50: #FBF8EE;
+  --color-gold-100: #F5EECD;
+  --color-gold-200: #EAD99B;
+  --color-gold-300: #DEC268;
+  --color-gold-400: #D4AF37;
+  --color-gold-500: #C9A227;
+  --color-gold-600: #B08B1B;
+  --color-gold-700: #8C6D14;
+  --color-gold-800: #6B520E;
+  --color-gold-900: #4A3808;
+  --color-gold-950: #2E2203;
+
+  /* Remap indigo and blue to gold to eliminate leftover default colors */
+  --color-indigo-50: #FBF8EE;
+  --color-indigo-100: #F5EECD;
+  --color-indigo-200: #EAD99B;
+  --color-indigo-300: #DEC268;
+  --color-indigo-400: #D4AF37;
+  --color-indigo-500: #C9A227;
+  --color-indigo-600: #B08B1B;
+  --color-indigo-700: #8C6D14;
+  --color-indigo-800: #6B520E;
+  --color-indigo-900: #4A3808;
+  --color-indigo-950: #2E2203;
+
+  --color-blue-50: #FBF8EE;
+  --color-blue-100: #F5EECD;
+  --color-blue-200: #EAD99B;
+  --color-blue-300: #DEC268;
+  --color-blue-400: #D4AF37;
+  --color-blue-500: #C9A227;
+  --color-blue-600: #B08B1B;
+  --color-blue-700: #8C6D14;
+  --color-blue-800: #6B520E;
+  --color-blue-900: #4A3808;
+}
+
+@layer base {
+  body {
+    background-color: #F8F4E5;
+    color: #0A0A0A;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar in rich gold and white */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #FBF8EE;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #DEC268;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #C9A227;
+  }
+}
+
+/* Subtle, smooth keyframe animations */
+@keyframes goldFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes goldShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-gold-fade-in {
+  animation: goldFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Interactive micro-interaction utility classes */
+.card-hover-lift {
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(201, 162, 39, 0.18), 0 2px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.btn-hover-lift {
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+}
+.btn-hover-lift:hover {
+  transform: translateY(-1px);
+}
+.btn-hover-lift:active {
+  transform: translateY(0);
+}

@@ -1,0 +1,192 @@
+import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { Navbar } from './components/layout/Navbar';
+import { Sidebar } from './components/layout/Sidebar';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ProjectDetailPage } from './pages/ProjectDetailPage';
+import { KanbanPage } from './pages/KanbanPage';
+import { TasksPage } from './pages/TasksPage';
+import { ClientsPage } from './pages/ClientsPage';
+import { UsersPage } from './pages/UsersPage';
+import { ProfilePage } from './pages/ProfilePage';
+import { AttendancePage } from './pages/AttendancePage';
+import { MilestonesPage } from './pages/MilestonesPage';
+import { ApprovalsPage } from './pages/ApprovalsPage';
+import { ReportsPage } from './pages/ReportsPage';
+import { TeamPage } from './pages/TeamPage';
+import { LeavesPage } from './pages/LeavesPage';
+import { SOPPage } from './pages/SOPPage';
+import { PerformancePage } from './pages/PerformancePage';
+import { ActivitiesPage } from './pages/ActivitiesPage';
+import { ChatPage } from './pages/ChatPage';
+import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { LoadingSpinner } from './components/common/LoadingSpinner';
+import { ProjectModal } from './components/projects/ProjectModal';
+import { ClientProjectRequestModal } from './components/projects/ClientProjectRequestModal';
+import { TaskModal } from './components/tasks/TaskModal';
+import { api } from './services/api';
+import { Client, Project, User } from './types';
+
+function MainApp() {
+  const { user, isLoading } = useAuth();
+  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [currentPath, setCurrentPath] = useState<string>('/dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  // Global Quick Modals
+  const [isQuickProjectOpen, setIsQuickProjectOpen] = useState(false);
+  const [isClientProjectOpen, setIsClientProjectOpen] = useState(false);
+  const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+
+  // Simple client-side router navigation
+  const navigate = (path: string) => {
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (user) {
+      // Pre-fetch collections for global quick-add actions
+      api.getClients().then(setClients).catch(() => {});
+      api.getProjects().then(setProjects).catch(() => {});
+      if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') {
+        api.getUsers().then(setUsers).catch(() => {});
+      }
+    }
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gold-50 flex items-center justify-center">
+        <LoadingSpinner message="Authenticating PlanForge workspace..." size="lg" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    if (authView === 'register') {
+      return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
+    }
+    return <LoginPage onNavigateToRegister={() => setAuthView('register')} />;
+  }
+
+  // Parse project detail route: /projects/:id
+  const projectDetailMatch = currentPath.match(/^\/projects\/([a-zA-Z0-9_-]+)$/);
+  const activeProjectId = projectDetailMatch ? projectDetailMatch[1] : null;
+
+  return (
+    <div className="min-h-screen bg-[#F8F4E5] text-black flex flex-col antialiased selection:bg-gold-200 selection:text-black">
+      {/* Top Navigation */}
+      <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+
+      {/* Body Layout */}
+      <div className="flex-1 flex">
+        {/* Sidebar */}
+        <Sidebar
+          currentPath={currentPath}
+          onNavigate={navigate}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
+        />
+
+        {/* Main Content Area */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden animate-gold-fade-in">
+          {activeProjectId ? (
+            <ProjectDetailPage
+              projectId={activeProjectId}
+              onBack={() => navigate('/projects')}
+              onNavigateToKanban={() => navigate('/kanban')}
+            />
+          ) : currentPath === '/projects' ? (
+            <ProjectsPage onNavigateToProject={(id) => navigate(`/projects/${id}`)} />
+          ) : currentPath === '/kanban' ? (
+            <KanbanPage />
+          ) : currentPath === '/tasks' ? (
+            <TasksPage />
+          ) : currentPath === '/milestones' ? (
+            <MilestonesPage />
+          ) : currentPath === '/approvals' ? (
+            <ApprovalsPage onNavigate={navigate} />
+          ) : currentPath === '/reports' ? (
+            <ReportsPage onNavigate={navigate} />
+          ) : currentPath === '/team' ? (
+            <TeamPage onNavigate={navigate} />
+          ) : currentPath === '/clients' ? (
+            <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
+          ) : currentPath === '/users' ? (
+            <UsersPage />
+          ) : currentPath === '/profile' ? (
+            <ProfilePage />
+          ) : currentPath === '/attendance' ? (
+            <AttendancePage currentUser={user} />
+          ) : currentPath === '/leaves' ? (
+            <LeavesPage />
+          ) : currentPath === '/sops' ? (
+            <SOPPage />
+          ) : currentPath === '/performance' ? (
+            <PerformancePage />
+          ) : currentPath === '/activities' ? (
+            <ActivitiesPage />
+          ) : currentPath === '/chat' ? (
+            <ChatPage />
+          ) : currentPath === '/settings' ? (
+            <AdminSettingsPage />
+          ) : (
+            <DashboardPage
+              onNavigate={navigate}
+              onOpenNewProject={() => setIsQuickProjectOpen(true)}
+              onOpenClientProject={() => setIsClientProjectOpen(true)}
+              onOpenNewTask={() => setIsQuickTaskOpen(true)}
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Global Quick Add Modals */}
+      <ProjectModal
+        isOpen={isQuickProjectOpen}
+        onClose={() => setIsQuickProjectOpen(false)}
+        onSuccess={() => {
+          api.getProjects().then(setProjects).catch(() => {});
+          navigate('/projects');
+        }}
+        clients={clients}
+        teamMembers={users.filter((u) => u.role !== 'CLIENT')}
+      />
+
+      <ClientProjectRequestModal
+        isOpen={isClientProjectOpen}
+        onClose={() => setIsClientProjectOpen(false)}
+        onSuccess={() => {
+          api.getProjects().then(setProjects).catch(() => {});
+          navigate('/projects');
+        }}
+      />
+
+      <TaskModal
+        isOpen={isQuickTaskOpen}
+        onClose={() => setIsQuickTaskOpen(false)}
+        onSuccess={() => {
+          api.getProjects().then(setProjects).catch(() => {});
+          navigate('/tasks');
+        }}
+        projects={projects}
+        users={users}
+      />
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
+  );
+}

@@ -1,0 +1,296 @@
+import React, { useState, useEffect } from 'react';
+import { Modal } from '../common/Modal';
+import { Task, Project, User, TaskStatus, TaskPriority } from '../../types';
+import { api } from '../../services/api';
+
+interface TaskModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  task?: Task | null;
+  projects: Project[];
+  users: User[];
+  defaultProjectId?: string;
+  defaultStatus?: TaskStatus;
+}
+
+export const TaskModal: React.FC<TaskModalProps> = ({
+  isOpen,
+  onClose,
+  onSuccess,
+  task,
+  projects,
+  users,
+  defaultProjectId,
+  defaultStatus,
+}) => {
+  const isEditing = Boolean(task);
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [projectId, setProjectId] = useState('');
+  const [assignedToId, setAssignedToId] = useState<string>('');
+  const [status, setStatus] = useState<TaskStatus>('TODO');
+  const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
+  const [progress, setProgress] = useState<number>(0);
+  const [dueDate, setDueDate] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title || '');
+      setDescription(task.description || '');
+      setProjectId(task.projectId || '');
+      setAssignedToId(task.assignedToId || '');
+      setStatus(task.status || 'TODO');
+      setPriority(task.priority || 'MEDIUM');
+      setProgress(task.progress || 0);
+      setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
+    } else {
+      setTitle('');
+      setDescription('');
+      setProjectId(defaultProjectId || projects[0]?.id || '');
+      setAssignedToId('');
+      setStatus(defaultStatus || 'TODO');
+      setPriority('MEDIUM');
+      setProgress(0);
+      setDueDate('');
+    }
+    setError(null);
+  }, [task, projects, defaultProjectId, defaultStatus, isOpen]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      setError('Task title is required.');
+      return;
+    }
+    if (!projectId) {
+      setError('Please select a project.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      if (isEditing && task) {
+        await api.updateTask(task.id, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          projectId,
+          assignedToId: assignedToId || undefined,
+          status,
+          priority,
+          progress: Number(progress),
+          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        });
+      } else {
+        await api.createTask({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          projectId,
+          assignedToId: assignedToId || undefined,
+          status,
+          priority,
+          progress: Number(progress),
+          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+        });
+      }
+
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Failed to save task.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Status & progress auto syncing
+  const handleStatusChange = (newStatus: TaskStatus) => {
+    setStatus(newStatus);
+    if (newStatus === 'COMPLETED') setProgress(100);
+    else if (newStatus === 'REVIEW' && progress < 75) setProgress(75);
+    else if (newStatus === 'IN_PROGRESS' && progress === 0) setProgress(50);
+    else if (newStatus === 'TODO' && progress === 100) setProgress(0);
+  };
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditing ? 'Edit Task' : 'Create New Task'}
+      subtitle={isEditing ? 'Update task deliverables and assignment' : 'Add a task deliverable to a project'}
+      maxWidth="lg"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="p-3 text-sm text-black bg-gold-100 border border-gold-400 rounded-lg font-medium">
+            {error}
+          </div>
+        )}
+
+        {/* Task Title */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+            Task Title <span className="text-gold-700">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="e.g., Implement OAuth callback handler"
+            className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-medium placeholder-black/40 focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+          />
+        </div>
+
+        {/* Description */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+            Description
+          </label>
+          <textarea
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Detailed task criteria, acceptance specs, or technical notes..."
+            className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-medium placeholder-black/40 focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+          />
+        </div>
+
+        {/* Project Selection */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+            Associated Project <span className="text-gold-700">*</span>
+          </label>
+          <select
+            required
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+          >
+            <option value="" disabled>
+              Select Project
+            </option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Assignee Selection */}
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+            Assigned User
+          </label>
+          <select
+            value={assignedToId}
+            onChange={(e) => setAssignedToId(e.target.value)}
+            className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+          >
+            <option value="">Unassigned</option>
+            {users
+              .filter((u) => u.role !== 'CLIENT')
+              .map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({u.role.replace('_', ' ')})
+                </option>
+              ))}
+          </select>
+        </div>
+
+        {/* Status and Priority */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+              Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => handleStatusChange(e.target.value as TaskStatus)}
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+            >
+              <option value="TODO">To Do</option>
+              <option value="IN_PROGRESS">In Progress</option>
+              <option value="REVIEW">In Review</option>
+              <option value="COMPLETED">Completed</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+              Priority
+            </label>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as TaskPriority)}
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+            >
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="URGENT">Urgent</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Progress & Due Date */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-black">
+                Progress
+              </label>
+              <span className="text-xs font-extrabold text-black">{progress}%</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              value={progress}
+              onChange={(e) => setProgress(Number(e.target.value))}
+              className="w-full h-2 bg-gold-200 rounded-lg appearance-none cursor-pointer accent-gold-600"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1">
+              Due Date
+            </label>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+            />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gold-200">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="px-4 py-2 text-sm font-bold text-black bg-white hover:bg-gold-100 border border-gold-300 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="px-5 py-2 text-sm font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg transition-colors disabled:opacity-50 shadow-sm cursor-pointer btn-hover-lift"
+          >
+            {isSubmitting ? 'Saving...' : isEditing ? 'Update Task' : 'Create Task'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+};
