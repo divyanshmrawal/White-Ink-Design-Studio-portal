@@ -22,28 +22,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = useCallback(async () => {
-    const savedToken = localStorage.getItem('pms_auth_token');
-    if (!savedToken) {
-      setUser(null);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const { user: me } = await api.getMe();
-      setUser(me);
-      // If notification permission was already granted previously, ensure FCM token is registered
-      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        initAndRegisterFcmToken().catch(() => {});
-      }
-    } catch (err) {
-      console.warn('Failed to restore session:', err);
-      localStorage.removeItem('pms_auth_token');
-      setToken(null);
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
+    localStorage.removeItem('pms_auth_token');
+    setToken(null);
+    setUser(null);
+    setIsLoading(false);
   }, []);
 
   useEffect(() => {
