@@ -138,7 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Clients',
       path: '/clients',
       icon: Building2,
-      show: role !== 'TEAM_MEMBER',
+      show: isSuperAdminOrAdmin,
       category: 'MANAGEMENT',
     },
     {
@@ -172,6 +172,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Admin',
       show: isSuperAdminOrAdmin,
       category: 'MANAGEMENT',
+    },
+    {
+      name: 'Account Settings',
+      path: '/client-settings',
+      icon: Settings,
+      show: role === 'CLIENT',
+      category: 'ACCOUNT',
     },
     {
       name: 'My Profile',

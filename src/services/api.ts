@@ -63,6 +63,12 @@ export const api = {
 
   getMe: () => request<{ user: User }>('/auth/me'),
 
+  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+    request<{ message: string }>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   // Users
   getUsers: (params?: { search?: string; role?: string }) => {
     const query = new URLSearchParams();

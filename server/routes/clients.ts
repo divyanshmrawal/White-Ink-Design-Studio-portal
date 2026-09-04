@@ -96,14 +96,23 @@ clientsRouter.post('/', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (re
 });
 
 // PATCH /api/clients/:id
-clientsRouter.patch('/:id', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+clientsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
+    const currentUser = req.user!;
     const { id } = req.params;
     const { name, company, email, phone, address } = req.body;
 
     const target = db.getClientById(id);
     if (!target) {
       return res.status(404).json({ message: 'Client not found.' });
+    }
+
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+    const isOwnClient =
+      currentUser.role === 'CLIENT' &&
+      (target.id === currentUser.id || target.email.toLowerCase() === currentUser.email.toLowerCase());
+    if (!isAdmin && !isOwnClient) {
+      return res.status(403).json({ message: 'Forbidden: You cannot modify this client record.' });
     }
 
     const updates: any = {};

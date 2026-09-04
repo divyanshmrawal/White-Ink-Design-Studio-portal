@@ -23,6 +23,7 @@ import { PerformancePage } from './pages/PerformancePage';
 import { ActivitiesPage } from './pages/ActivitiesPage';
 import { ChatPage } from './pages/ChatPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
+import { ClientSettingsPage } from './pages/ClientSettingsPage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ProjectModal } from './components/projects/ProjectModal';
 import { ClientProjectRequestModal } from './components/projects/ClientProjectRequestModal';
@@ -118,7 +119,27 @@ function MainApp() {
           ) : currentPath === '/team' ? (
             <TeamPage onNavigate={navigate} />
           ) : currentPath === '/clients' ? (
-            <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
+            user.role === 'CLIENT' ? (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            ) : (
+              <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
+            )
+          ) : currentPath === '/client-settings' ? (
+            user.role === 'CLIENT' ? (
+              <ClientSettingsPage />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : currentPath === '/users' ? (
             <UsersPage />
           ) : currentPath === '/profile' ? (

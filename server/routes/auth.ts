@@ -113,3 +113,36 @@ authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) =>
     user: sanitizeUser(req.user),
   });
 });
+
+// POST /api/auth/change-password
+authRouter.post('/change-password', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const currentUser = req.user!;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+    }
+
+    // Verify current password against stored hash
+    const isMatch = await comparePassword(currentPassword, currentUser.passwordHash);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Current password is incorrect.' });
+    }
+
+    const newPasswordHash = await hashPassword(newPassword);
+    const updated = db.updateUser(currentUser.id, { passwordHash: newPasswordHash });
+    if (!updated) {
+      return res.status(500).json({ message: 'Failed to update password.' });
+    }
+
+    return res.json({ message: 'Password updated successfully.' });
+  } catch (error: any) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ message: 'Internal server error during password change.' });
+  }
+});
