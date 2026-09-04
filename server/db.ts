@@ -5,7 +5,7 @@ import { sendFcmPushNotification } from './firebase.ts';
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEAM_MEMBER' | 'CLIENT';
 export type ProjectStatus = 'PENDING' | 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type ProjectPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED' | 'REVISION_REQUESTED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY' | 'ON_LEAVE';
 export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE';
@@ -93,6 +93,7 @@ export interface TaskRecord {
   priority: TaskPriority;
   progress: number;
   dueDate?: string | null;
+  revisionRequest?: string | null; // JSON string of RevisionRequest
   createdAt: string;
   updatedAt: string;
 }
@@ -1060,6 +1061,13 @@ class DatabaseService {
       else if (updates.status === 'REVIEW' && newProgress < 75) newProgress = 75;
       else if (updates.status === 'IN_PROGRESS' && newProgress === 0) newProgress = 25;
       else if (updates.status === 'TODO' && newProgress === 100) newProgress = 0;
+      else if (updates.status === 'REVISION_REQUESTED') newProgress = Math.min(newProgress, 99);
+    }
+
+    // Clear revisionRequest when team member moves task back into active work
+    if (updates.status && ['IN_PROGRESS', 'REVIEW', 'COMPLETED'].includes(updates.status) &&
+        oldTask.status === 'REVISION_REQUESTED' && updates.revisionRequest === undefined) {
+      updates.revisionRequest = null;
     }
 
     this.data.tasks[index] = {

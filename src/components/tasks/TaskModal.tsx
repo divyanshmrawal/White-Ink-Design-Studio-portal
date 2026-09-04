@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { Task, Project, User, TaskStatus, TaskPriority } from '../../types';
+import { Task, Project, User, TaskStatus, TaskPriority, RevisionRequest } from '../../types';
 import { api } from '../../services/api';
+import { AlertCircle, FileText, Calendar } from 'lucide-react';
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -115,6 +116,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
     else if (newStatus === 'REVIEW' && progress < 75) setProgress(75);
     else if (newStatus === 'IN_PROGRESS' && progress === 0) setProgress(50);
     else if (newStatus === 'TODO' && progress === 100) setProgress(0);
+    // REVISION_REQUESTED keeps current progress
   };
 
   return (
@@ -126,6 +128,47 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       maxWidth="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Revision Request Banner — shown to team members when client has requested changes */}
+        {task?.revisionRequest && (
+          <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">Client Revision Request</span>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                (task.revisionRequest as RevisionRequest).priority === 'HIGH'
+                  ? 'bg-rose-100 text-rose-700 border-rose-300'
+                  : (task.revisionRequest as RevisionRequest).priority === 'LOW'
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                  : 'bg-amber-100 text-amber-700 border-amber-300'
+              }`}>
+                {(task.revisionRequest as RevisionRequest).priority} Priority
+              </span>
+            </div>
+            <p className="text-xs text-amber-900 font-medium leading-relaxed">
+              {(task.revisionRequest as RevisionRequest).feedback}
+            </p>
+            {(task.revisionRequest as RevisionRequest).targetDate && (
+              <div className="flex items-center gap-1 text-[11px] text-amber-700 font-semibold">
+                <Calendar className="h-3 w-3" />
+                Target: {new Date((task.revisionRequest as RevisionRequest).targetDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            )}
+            {(task.revisionRequest as RevisionRequest).files?.length > 0 && (
+              <div className="space-y-1 pt-1">
+                {(task.revisionRequest as RevisionRequest).files.map((f) => (
+                  <div key={f.name} className="flex items-center gap-2 text-[11px] text-amber-800 font-medium">
+                    <FileText className="h-3 w-3 shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    <span className="text-amber-600 shrink-0">{f.size}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="p-3 text-sm text-black bg-gold-100 border border-gold-400 rounded-lg font-medium">
             {error}
@@ -219,6 +262,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <option value="IN_PROGRESS">In Progress</option>
               <option value="REVIEW">In Review</option>
               <option value="COMPLETED">Completed</option>
+              <option value="REVISION_REQUESTED">Revision Requested</option>
             </select>
           </div>
 

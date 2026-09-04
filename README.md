@@ -36,15 +36,15 @@ $$\text{Project Progress} = \frac{1}{N} \sum_{i=1}^{N} \text{Task Progress}_i$$
 
 ---
 
-## 🔑 Demo Logins (Password: `password123`)
+## 🔑 Demo Logins
 
 | Role | Name | Email | Permissions |
 | :--- | :--- | :--- | :--- |
-| **Super Admin** | Alex Vance | `admin@demo.com` | Root system access |
-| **Admin** | Sarah Connor | `manager@demo.com` | Project & team management |
-| **Team Member** | David Chen | `developer@demo.com` | Assigned deliverables |
-| **Team Member** | Elena Rostova | `designer@demo.com` | Assigned deliverables |
-| **Client** | Marcus Brody | `client@demo.com` | Scoped client viewer |
+| **Super Admin** | Alex Vance | `alex@planforge.io` | `Admin@123` | Root system access |
+| **Admin** | Sarah Connor | `sarah@planforge.io` | `Admin@123` | Project & team management |
+| **Team Member** | David Kim | `david@planforge.io` | `User@123` | Assigned deliverables |
+| **Team Member** | Elena Rostova | `elena@planforge.io` | `User@123` | Assigned deliverables |
+| **Client** | Jonathan Sterling | `jonathan@acmecorp.com` | `Client@123` | Scoped client viewer |
 
 *(You can also use the **Switch Role** dropdown in the top navigation bar to test any persona instantly with 1 click).*
 

@@ -67,6 +67,7 @@ tasksRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => 
 
     return {
       ...t,
+      revisionRequest: t.revisionRequest ? JSON.parse(t.revisionRequest) : null,
       project: project ? { id: project.id, name: project.name, status: project.status } : null,
       assignedTo: assignedTo ? sanitizeUser(assignedTo) : null,
       createdBy: createdBy ? sanitizeUser(createdBy) : null,
@@ -115,6 +116,7 @@ tasksRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) 
 
   return res.json({
     ...task,
+    revisionRequest: task.revisionRequest ? JSON.parse(task.revisionRequest) : null,
     project,
     assignedTo: assignedTo ? sanitizeUser(assignedTo) : null,
     createdBy: createdBy ? sanitizeUser(createdBy) : null,
@@ -211,6 +213,81 @@ tasksRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
   }
 });
 
+// PATCH /api/tasks/:id/revision (CLIENT role only — submit revision request)
+tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
+  const { id } = req.params;
+  const { feedback, priority, targetDate, files } = req.body;
+
+  if (currentUser.role !== 'CLIENT') {
+    return res.status(403).json({ message: 'Only clients can submit revision requests.' });
+  }
+
+  if (!feedback || !feedback.trim()) {
+    return res.status(400).json({ message: 'Feedback is required.' });
+  }
+
+  const task = db.getTaskById(id);
+  if (!task) return res.status(404).json({ message: 'Task not found.' });
+
+  const project = db.getProjectById(task.projectId);
+  if (!project) return res.status(404).json({ message: 'Project not found.' });
+
+  const client = db.getClientById(project.clientId);
+  if (!client || client.email.toLowerCase() !== currentUser.email.toLowerCase()) {
+    return res.status(403).json({ message: 'Forbidden.' });
+  }
+
+  const revisionRequest = {
+    feedback: feedback.trim(),
+    priority: (priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM',
+    targetDate: targetDate || null,
+    files: Array.isArray(files) ? files : [],
+    submittedAt: new Date().toISOString(),
+  };
+
+  const updated = db.updateTask(id, {
+    status: 'REVISION_REQUESTED',
+    revisionRequest: JSON.stringify(revisionRequest),
+  });
+
+  db.logActivity({
+    userId: currentUser.id,
+    action: 'REVISION_REQUESTED',
+    entityType: 'TASK',
+    entityId: id,
+    details: `Client requested revision on task "${task.title}": ${feedback.trim().slice(0, 100)}`,
+  });
+
+  // Notify assigned team member
+  if (task.assignedToId) {
+    db.createNotification({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: task.assignedToId,
+      title: 'Revision Requested',
+      message: `Client requested changes on "${task.title}" [${revisionRequest.priority} priority]: ${feedback.trim().slice(0, 120)}`,
+      type: 'TASK_STATUS',
+      linkUrl: `/projects/${task.projectId}`,
+      isRead: false,
+    });
+  }
+
+  // Also notify project creator/admin if different from assignee
+  if (task.createdById && task.createdById !== task.assignedToId) {
+    db.createNotification({
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: task.createdById,
+      title: 'Revision Requested',
+      message: `Client requested changes on task "${task.title}" in project "${project.name}"`,
+      type: 'TASK_STATUS',
+      linkUrl: `/projects/${task.projectId}`,
+      isRead: false,
+    });
+  }
+
+  return res.json({ ...updated, revisionRequest });
+});
+
 // PATCH /api/tasks/:id/approve (CLIENT role only)
 tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
@@ -272,8 +349,8 @@ tasksRouter.patch('/:id/status', requireAuth, (req: AuthenticatedRequest, res: R
     return res.status(403).json({ message: 'Clients cannot change task status.' });
   }
 
-  if (!status || !['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED'].includes(status)) {
-    return res.status(400).json({ message: 'Invalid status value. Must be TODO, IN_PROGRESS, REVIEW, or COMPLETED.' });
+  if (!status || !['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'REVISION_REQUESTED'].includes(status)) {
+    return res.status(400).json({ message: 'Invalid status value.' });
   }
 
   const existing = db.getTaskById(id);

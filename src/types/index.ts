@@ -1,7 +1,7 @@
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEAM_MEMBER' | 'CLIENT';
 export type ProjectStatus = 'PENDING' | 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type ProjectPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
-export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED';
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED' | 'REVISION_REQUESTED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'HALF_DAY' | 'ON_LEAVE';
 export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE';
@@ -122,6 +122,14 @@ export interface Project {
   };
 }
 
+export interface RevisionRequest {
+  feedback: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+  targetDate?: string | null;
+  files: { name: string; size: string }[];
+  submittedAt: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -133,6 +141,7 @@ export interface Task {
   priority: TaskPriority;
   progress: number;
   dueDate?: string | null;
+  revisionRequest?: RevisionRequest | null;
   createdAt?: string;
   updatedAt?: string;
   project?: { id: string; name: string; status?: ProjectStatus } | null;

@@ -66,6 +66,12 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
       dot: 'bg-gold-500',
       label: 'In Review',
     },
+    REVISION_REQUESTED: {
+      bg: 'bg-amber-100 border-amber-300',
+      text: 'text-amber-800 font-semibold',
+      dot: 'bg-amber-500 animate-pulse',
+      label: 'Revision Requested',
+    },
   };
 
   const current = configMap[status] || {

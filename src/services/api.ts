@@ -248,6 +248,17 @@ export const api = {
       method: 'PATCH',
     }),
 
+  submitRevisionRequest: (id: string, payload: {
+    feedback: string;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH';
+    targetDate?: string;
+    files: { name: string; size: string }[];
+  }) =>
+    request<Task>(`/tasks/${id}/revision`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
   updateTaskProgress: (id: string, progress: number) =>
     request<Task>(`/tasks/${id}/progress`, {
       method: 'PATCH',

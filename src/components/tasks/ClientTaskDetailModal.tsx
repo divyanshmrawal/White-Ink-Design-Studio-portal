@@ -100,6 +100,7 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
   };
 
   const isAlreadyApproved = task.status === 'COMPLETED';
+  const isRevisionRequested = task.status === 'REVISION_REQUESTED';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -130,6 +131,30 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto">
+          {/* Revision Request Banner — shown to client when they've already requested changes */}
+          {isRevisionRequested && task.revisionRequest && (
+            <div className="mx-5 mt-5 p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">Revision Requested</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  task.revisionRequest.priority === 'HIGH'
+                    ? 'bg-rose-100 text-rose-700 border-rose-300'
+                    : task.revisionRequest.priority === 'LOW'
+                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                    : 'bg-amber-100 text-amber-700 border-amber-300'
+                }`}>
+                  {task.revisionRequest.priority} Priority
+                </span>
+              </div>
+              <p className="text-xs text-amber-900 font-medium leading-relaxed">{task.revisionRequest.feedback}</p>
+              {task.revisionRequest.targetDate && (
+                <p className="text-[11px] text-amber-700 font-semibold">
+                  Target: {new Date(task.revisionRequest.targetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Description */}
           <div className="px-5 pt-5 pb-4 space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs font-bold text-black uppercase tracking-wider">
@@ -181,10 +206,12 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
             <button
               type="button"
               onClick={handleApprove}
-              disabled={isApproving || isAlreadyApproved}
+              disabled={isApproving || isAlreadyApproved || isRevisionRequested}
               className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                 isAlreadyApproved
                   ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 cursor-default'
+                  : isRevisionRequested
+                  ? 'bg-gold-100 text-black/40 border border-gold-200 cursor-default'
                   : 'bg-[#8B7355] hover:bg-[#7a6347] text-white border border-[#7a6347] shadow-sm btn-hover-lift'
               } disabled:opacity-60`}
             >
@@ -194,11 +221,11 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
             <button
               type="button"
               onClick={() => onRequestChanges(task)}
-              disabled={isAlreadyApproved}
+              disabled={isAlreadyApproved || isRevisionRequested}
               className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold bg-white hover:bg-gold-50 text-black border border-gold-400 transition-all cursor-pointer btn-hover-lift disabled:opacity-40 disabled:cursor-default"
             >
               <RefreshCw className="h-4 w-4 shrink-0" />
-              Request Changes
+              {isRevisionRequested ? 'Pending Review' : 'Request Changes'}
             </button>
           </div>
 

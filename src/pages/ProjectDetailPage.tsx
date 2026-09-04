@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ProjectModal } from '../components/projects/ProjectModal';
 import { TaskModal } from '../components/tasks/TaskModal';
 import { ClientTaskDetailModal } from '../components/tasks/ClientTaskDetailModal';
+import { RequestChangesModal } from '../components/tasks/RequestChangesModal';
 import {
   ArrowLeft,
   Calendar,
@@ -60,6 +61,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [clientViewTask, setClientViewTask] = useState<Task | null>(null);
+  const [requestChangesTask, setRequestChangesTask] = useState<Task | null>(null);
 
   // Add Member Modal
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -372,6 +374,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                       <PriorityBadge priority={task.priority} size="sm" />
                       <span className="text-sm font-bold text-black">{task.title}</span>
+                      {task.status === 'REVISION_REQUESTED' && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                          Revision Requested
+                        </span>
+                      )}
                     </div>
                     {task.description && (
                       <p className="text-xs text-black/70 line-clamp-1">{task.description}</p>
@@ -417,6 +424,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         <option value="IN_PROGRESS">In Progress</option>
                         <option value="REVIEW">Review</option>
                         <option value="COMPLETED">Completed</option>
+                        <option value="REVISION_REQUESTED">Revision Requested</option>
                       </select>
                     )}
 
@@ -812,9 +820,20 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             loadProjectDetails();
           }}
           onRequestChanges={(task) => {
-            // Placeholder: next prompt will wire the Request Changes form
             setClientViewTask(null);
-            alert(`Request Changes flow for "${task.title}" — coming next!`);
+            setRequestChangesTask(task);
+          }}
+        />
+      )}
+
+      {/* Request Changes Modal */}
+      {requestChangesTask && (
+        <RequestChangesModal
+          task={requestChangesTask}
+          onClose={() => setRequestChangesTask(null)}
+          onSubmitted={() => {
+            setRequestChangesTask(null);
+            loadProjectDetails();
           }}
         />
       )}

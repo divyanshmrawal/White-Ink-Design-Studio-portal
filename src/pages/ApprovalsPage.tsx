@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { ClientApproval, Project, ApprovalStatus } from '../types';
+import { ClientApproval, Project, ApprovalStatus, Task } from '../types';
+import { RequestChangesModal } from '../components/tasks/RequestChangesModal';
 import {
   FileCheck,
   Plus,
@@ -33,6 +34,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   const canDelete = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
   const [approvals, setApprovals] = useState<ClientApproval[]>([]);
+  const [taskApprovals, setTaskApprovals] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -57,20 +59,30 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   const [reviewComments, setReviewComments] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState('');
+  const [taskActionLoading, setTaskActionLoading] = useState<string | null>(null);
+  const [requestChangesTask, setRequestChangesTask] = useState<Task | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [approvalsRes, projectsRes] = await Promise.all([
+      const [approvalsRes, projectsRes, tasksRes] = await Promise.all([
         api.getApprovals({
           projectId: selectedProject,
           status: selectedStatus,
           search: search || undefined,
         }),
         api.getProjects(),
+        isClient
+          ? api.getTasks({ projectId: selectedProject, search: search || undefined })
+          : Promise.resolve([] as Task[]),
       ]);
       setApprovals(approvalsRes);
       setProjects(projectsRes);
+      setTaskApprovals(
+        tasksRes.filter((task) =>
+          ['REVIEW', 'REVISION_REQUESTED', 'COMPLETED'].includes(task.status)
+        )
+      );
     } catch (err) {
       console.error('Error loading approvals:', err);
     } finally {
@@ -164,11 +176,45 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
     }
   };
 
+  const handleApproveTask = async (task: Task) => {
+    if (!window.confirm(`Approve task "${task.title}"?`)) return;
+    try {
+      setTaskActionLoading(task.id);
+      await api.approveTask(task.id);
+      await loadData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to approve task');
+    } finally {
+      setTaskActionLoading(null);
+    }
+  };
+
+  const taskStatus = (task: Task): ApprovalStatus => {
+    if (task.status === 'COMPLETED') return 'APPROVED';
+    if (task.status === 'REVISION_REQUESTED') return 'REJECTED';
+    return 'PENDING';
+  };
+
+  const filteredTaskApprovals = taskApprovals.filter((task) => {
+    const statusMatches = selectedStatus === 'ALL' || taskStatus(task) === selectedStatus;
+    const searchValue = search.toLowerCase();
+    const searchMatches = !searchValue ||
+      task.title.toLowerCase().includes(searchValue) ||
+      (task.description || '').toLowerCase().includes(searchValue);
+    return statusMatches && searchMatches;
+  });
+
+  const taskApprovalsByProject = filteredTaskApprovals.reduce<Record<string, Task[]>>((groups, task) => {
+    (groups[task.projectId] ||= []).push(task);
+    return groups;
+  }, {});
+
   // KPIs
-  const totalCount = approvals.length;
-  const pendingCount = approvals.filter((a) => a.status === 'PENDING').length;
-  const approvedCount = approvals.filter((a) => a.status === 'APPROVED').length;
-  const rejectedCount = approvals.filter((a) => a.status === 'REJECTED').length;
+  const totalCount = approvals.length + filteredTaskApprovals.length;
+  const pendingCount = approvals.filter((a) => a.status === 'PENDING').length + filteredTaskApprovals.filter((t) => taskStatus(t) === 'PENDING').length;
+  const approvedCount = approvals.filter((a) => a.status === 'APPROVED').length + filteredTaskApprovals.filter((t) => taskStatus(t) === 'APPROVED').length;
+  const rejectedCount = approvals.filter((a) => a.status === 'REJECTED').length + filteredTaskApprovals.filter((t) => taskStatus(t) === 'REJECTED').length;
+  const hasApprovalItems = approvals.length > 0 || filteredTaskApprovals.length > 0;
 
   const getStatusPill = (status: ApprovalStatus) => {
     switch (status) {
@@ -315,7 +361,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gold-600 border-t-transparent mb-3" />
           <p className="text-sm font-bold">Loading approval requests...</p>
         </div>
-      ) : approvals.length === 0 ? (
+      ) : !hasApprovalItems ? (
         <div className="p-12 text-center text-black/50 bg-white rounded-xl border border-gold-300">
           <FileCheck className="h-10 w-10 text-gold-400 mx-auto mb-3" />
           <h3 className="text-base font-extrabold text-black">No deliverables to display</h3>
@@ -337,6 +383,91 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
         </div>
       ) : (
         <div className="space-y-4">
+          {Object.entries(taskApprovalsByProject).map(([projectId, tasks]) => {
+            const project = projects.find((item) => item.id === projectId);
+
+            return (
+              <section key={projectId} className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                  <FolderKanban className="h-4 w-4 text-gold-700" />
+                  <h2 className="text-sm font-extrabold text-black">
+                    {project?.name || 'Project'}
+                  </h2>
+                  <span className="text-[11px] font-bold text-black/50">
+                    {tasks.length} task {tasks.length === 1 ? 'request' : 'requests'}
+                  </span>
+                </div>
+
+                {tasks.map((task) => {
+                  const status = taskStatus(task);
+                  const isPending = status === 'PENDING';
+
+                  return (
+                    <div
+                      key={`task-${task.id}`}
+                      className="bg-white rounded-xl border border-gold-300 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5"
+                    >
+                      <div className="space-y-2 flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          {getStatusPill(status)}
+                          <span className="text-[11px] font-bold text-gold-800 bg-gold-100 px-2.5 py-0.5 rounded border border-gold-300">
+                            Task approval
+                          </span>
+                          {task.createdAt && (
+                            <span className="text-xs text-black/50 flex items-center gap-1 font-medium">
+                              <Calendar className="h-3 w-3" />
+                              Updated {new Date(task.updatedAt || task.createdAt).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-base font-extrabold text-black leading-snug">{task.title}</h3>
+                        {task.description && (
+                          <p className="text-xs text-black/70 leading-relaxed max-w-2xl font-medium">
+                            {task.description}
+                          </p>
+                        )}
+                        {task.revisionRequest && (
+                          <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs mt-2">
+                            <div className="font-bold text-amber-900 mb-1">Client revision request</div>
+                            <p className="text-amber-900/80">{task.revisionRequest.feedback}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {isClient && isPending && (
+                        <div className="flex items-center gap-2 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gold-200">
+                          <button
+                            type="button"
+                            onClick={() => handleApproveTask(task)}
+                            disabled={taskActionLoading === task.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {taskActionLoading === task.id ? 'Approving...' : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRequestChangesTask(task)}
+                            disabled={taskActionLoading === task.id}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Request Changes
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </section>
+            );
+          })}
+
+          {approvals.length > 0 && (
+            <div className="pt-2">
+              <h2 className="text-sm font-extrabold text-black px-1 mb-3">Deliverable requests</h2>
+            </div>
+          )}
           {approvals.map((item) => {
             const project = item.project || projects.find((p) => p.id === item.projectId);
 
@@ -656,6 +787,17 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
             </form>
           </div>
         </div>
+      )}
+
+      {requestChangesTask && (
+        <RequestChangesModal
+          task={requestChangesTask}
+          onClose={() => setRequestChangesTask(null)}
+          onSubmitted={() => {
+            setRequestChangesTask(null);
+            loadData();
+          }}
+        />
       )}
     </div>
   );
