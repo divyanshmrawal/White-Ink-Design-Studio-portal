@@ -44,13 +44,13 @@ export const RequestChangesModal: React.FC<RequestChangesModalProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileError('');
-    const selected = Array.from(e.target.files || []);
-    const oversized = selected.filter((f) => f.size > MAX_FILE_BYTES);
+    const selected = e.target.files ? Array.from(e.target.files) : [];
+    const oversized = selected.filter((f: File) => f.size > MAX_FILE_BYTES);
     if (oversized.length > 0) {
-      setFileError(`${oversized.map((f) => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 25 MB limit.`);
+      setFileError(`${oversized.map((f: File) => f.name).join(', ')} exceed${oversized.length === 1 ? 's' : ''} the 25 MB limit.`);
       return;
     }
-    const newFiles: UploadedFile[] = selected.map((f) => ({
+    const newFiles: UploadedFile[] = selected.map((f: File) => ({
       name: f.name,
       size: formatBytes(f.size),
       raw: f,

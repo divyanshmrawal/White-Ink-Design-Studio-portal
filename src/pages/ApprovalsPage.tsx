@@ -383,7 +383,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {Object.entries(taskApprovalsByProject).map(([projectId, tasks]) => {
+          {(Object.entries(taskApprovalsByProject) as [string, Task[]][]).map(([projectId, tasks]) => {
             const project = projects.find((item) => item.id === projectId);
 
             return (

@@ -29,6 +29,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [dueDate, setDueDate] = useState('');
   const [status, setStatus] = useState<ProjectStatus>('PLANNING');
   const [priority, setPriority] = useState<ProjectPriority>('MEDIUM');
+  const [handoverNote, setHandoverNote] = useState('');
+  const [driveUrl, setDriveUrl] = useState('');
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       setDueDate(project.dueDate ? project.dueDate.split('T')[0] : '');
       setStatus(project.status || 'PLANNING');
       setPriority(project.priority || 'MEDIUM');
+      setHandoverNote(project.handoverNote || '');
+      setDriveUrl(project.driveUrl || '');
       setSelectedMemberIds(project.members?.map((m) => m.id) || []);
     } else {
       setName('');
@@ -51,6 +55,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       setDueDate('');
       setStatus('PLANNING');
       setPriority('MEDIUM');
+      setHandoverNote('');
+      setDriveUrl('');
       setSelectedMemberIds([]);
     }
     setError(null);
@@ -80,6 +86,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
           status,
           priority,
+          handoverNote: handoverNote.trim() || undefined,
+          driveUrl: driveUrl.trim() || undefined,
         });
 
         // Update members if changed
@@ -246,6 +254,37 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className="w-full px-3.5 py-2 text-sm bg-white border border-gold-300 rounded-lg text-black font-semibold focus:outline-none focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+            />
+          </div>
+        </div>
+
+        {/* Handover & Deliverables Fields */}
+        <div className="p-3.5 bg-[#FAF6ED] border border-[#DFCE9F] rounded-xl space-y-3">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#8C6D23]">
+            Handover & Deliverables Settings
+          </h4>
+          <div>
+            <label className="block text-xs font-bold text-black mb-1">
+              Final Handover Note / Thank-you Message
+            </label>
+            <input
+              type="text"
+              value={handoverNote}
+              onChange={(e) => setHandoverNote(e.target.value)}
+              placeholder="e.g. Small summary of project Thank you message"
+              className="w-full px-3.5 py-2 text-xs bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-black mb-1">
+              Direct Link of Project (Google Drive / Cloud Folder)
+            </label>
+            <input
+              type="url"
+              value={driveUrl}
+              onChange={(e) => setDriveUrl(e.target.value)}
+              placeholder="https://drive.google.com/drive/folders/..."
+              className="w-full px-3.5 py-2 text-xs bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500"
             />
           </div>
         </div>

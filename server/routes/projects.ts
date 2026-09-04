@@ -1,6 +1,16 @@
 import { Router, Response } from 'express';
+import PDFDocument from 'pdfkit';
 import { db, ProjectStatus, ProjectPriority } from '../db.ts';
 import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
+
+function escapeCsv(val: unknown): string {
+  if (val === null || val === undefined) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
 
 export const projectsRouter = Router();
 
@@ -152,6 +162,15 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
 
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'PENDING').length;
 
+  let handoverDocsList = [];
+  if (project.handoverDocs) {
+    try {
+      handoverDocsList = JSON.parse(project.handoverDocs);
+    } catch (e) {
+      handoverDocsList = [];
+    }
+  }
+
   return res.json({
     ...project,
     client: client || null,
@@ -161,6 +180,7 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
     milestones,
     approvals,
     pendingApprovalsCount,
+    handoverDocsList,
     comments,
     stats: {
       totalTasks: tasks.length,
@@ -339,29 +359,42 @@ projectsRouter.post('/', requireAuth, (req: AuthenticatedRequest, res: Response)
   }
 });
 
-// PATCH /api/projects/:id (SUPER_ADMIN, ADMIN)
-projectsRouter.patch('/:id', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+// PATCH /api/projects/:id (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER for handoverNote & driveUrl)
+projectsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   try {
+    const currentUser = req.user!;
     const { id } = req.params;
-    const { name, description, clientId, startDate, dueDate, status, priority } = req.body;
+    const { name, description, clientId, startDate, dueDate, status, priority, handoverNote, driveUrl } = req.body;
 
     const existing = db.getProjectById(id);
     if (!existing) {
       return res.status(404).json({ message: 'Project not found.' });
     }
 
-    const updates: any = {};
-    if (name) updates.name = name.trim();
-    if (description !== undefined) updates.description = description ? description.trim() : null;
-    if (clientId) {
-      const client = db.getClientById(clientId);
-      if (!client) return res.status(400).json({ message: 'Client does not exist.' });
-      updates.clientId = clientId;
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+    const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
+
+    if (!isAdmin && !isMember) {
+      return res.status(403).json({ message: 'Forbidden: You do not have permission to update this project.' });
     }
-    if (startDate !== undefined) updates.startDate = startDate;
-    if (dueDate !== undefined) updates.dueDate = dueDate;
-    if (status) updates.status = status;
-    if (priority) updates.priority = priority;
+
+    const updates: any = {};
+    if (handoverNote !== undefined) updates.handoverNote = handoverNote ? handoverNote.trim() : null;
+    if (driveUrl !== undefined) updates.driveUrl = driveUrl ? driveUrl.trim() : null;
+
+    if (isAdmin) {
+      if (name) updates.name = name.trim();
+      if (description !== undefined) updates.description = description ? description.trim() : null;
+      if (clientId) {
+        const client = db.getClientById(clientId);
+        if (!client) return res.status(400).json({ message: 'Client does not exist.' });
+        updates.clientId = clientId;
+      }
+      if (startDate !== undefined) updates.startDate = startDate;
+      if (dueDate !== undefined) updates.dueDate = dueDate;
+      if (status) updates.status = status;
+      if (priority) updates.priority = priority;
+    }
 
     const updated = db.updateProject(id, updates);
     return res.json(updated);
@@ -433,3 +466,391 @@ projectsRouter.delete('/:id/members/:userId', requireAuth, requireRoles(['SUPER_
 
   return res.json({ message: 'Member removed from project successfully.' });
 });
+
+// POST /api/projects/:id/handover-docs (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER)
+projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const currentUser = req.user!;
+    const { id } = req.params;
+    const { name, size, type, dataUrl, note } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Document name is required.' });
+    }
+
+    const project = db.getProjectById(id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found.' });
+    }
+
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+    const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
+
+    if (!isAdmin && !isMember && currentUser.role !== 'CLIENT') {
+      return res.status(403).json({ message: 'Forbidden: You cannot upload handover documents for this project.' });
+    }
+
+    const newDoc = db.addHandoverDoc(id, {
+      name: name.trim(),
+      size: size || '1.0 MB',
+      type: type || 'application/octet-stream',
+      dataUrl: dataUrl || null,
+      uploadedById: currentUser.id,
+      uploadedByName: currentUser.name,
+      note: note ? note.trim() : null,
+    });
+
+    // Create activity log
+    db.logActivity({
+      id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      userId: currentUser.id,
+      action: 'HANDOVER_DOC_UPLOADED',
+      entityType: 'PROJECT',
+      entityId: id,
+      details: JSON.stringify({ documentName: name, projectId: id }),
+    });
+
+    // Notify client and admins
+    const client = db.getClientById(project.clientId);
+    const clientUser = client ? db.getUsers().find((u) => u.email.toLowerCase() === client.email.toLowerCase() || u.id === client.id) : null;
+    if (clientUser && clientUser.id !== currentUser.id) {
+      db.createNotification({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: clientUser.id,
+        title: 'New Handover Document Available',
+        message: `${currentUser.name} uploaded handover documentation for "${project.name}": ${name}`,
+        type: 'PROJECT_ASSIGNED',
+        linkUrl: `/projects/${id}`,
+        isRead: false,
+      });
+    }
+
+    // Refresh updated project
+    const updatedProject = db.getProjectById(id);
+    let docs = [];
+    if (updatedProject?.handoverDocs) {
+      try {
+        docs = JSON.parse(updatedProject.handoverDocs);
+      } catch (e) {
+        docs = [];
+      }
+    }
+
+    return res.status(201).json({
+      message: 'Handover document added successfully.',
+      doc: newDoc,
+      handoverDocs: docs,
+    });
+  } catch (error: any) {
+    console.error('Error uploading handover document:', error);
+    return res.status(500).json({ message: 'Failed to upload handover document.' });
+  }
+});
+
+// DELETE /api/projects/:id/handover-docs/:docId (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER)
+projectsRouter.delete('/:id/handover-docs/:docId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const currentUser = req.user!;
+    const { id, docId } = req.params;
+
+    const project = db.getProjectById(id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found.' });
+    }
+
+    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+    const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
+
+    if (!isAdmin && !isMember) {
+      return res.status(403).json({ message: 'Forbidden: You cannot delete handover documents.' });
+    }
+
+    const success = db.deleteHandoverDoc(id, docId);
+    if (!success) {
+      return res.status(404).json({ message: 'Document not found.' });
+    }
+
+    const updatedProject = db.getProjectById(id);
+    let docs = [];
+    if (updatedProject?.handoverDocs) {
+      try {
+        docs = JSON.parse(updatedProject.handoverDocs);
+      } catch (e) {
+        docs = [];
+      }
+    }
+
+    return res.json({
+      message: 'Handover document removed successfully.',
+      handoverDocs: docs,
+    });
+  } catch (error: any) {
+    console.error('Error deleting handover document:', error);
+    return res.status(500).json({ message: 'Failed to delete handover document.' });
+  }
+});
+
+// GET /api/projects/:id/audit-report
+projectsRouter.get('/:id/audit-report', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const currentUser = req.user!;
+    const { id } = req.params;
+    const format = (req.query.format as string) || 'pdf';
+
+    db.recalculateProjectProgress(id);
+    const project = db.getProjectById(id);
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found.' });
+    }
+
+    const client = db.getClientById(project.clientId);
+    const creator = db.getUserById(project.createdById);
+    const leadOwner = project.leadOwnerId ? db.getUserById(project.leadOwnerId) : null;
+    const tasks = db.getTasks().filter((t) => t.projectId === id);
+    const milestones = db.getMilestonesByProjectId(id);
+    const approvals = db.getApprovalsByProjectId(id);
+
+    let handoverDocsList: any[] = [];
+    if (project.handoverDocs) {
+      try {
+        handoverDocsList = JSON.parse(project.handoverDocs);
+      } catch (e) {
+        handoverDocsList = [];
+      }
+    }
+
+    // Access check
+    if (currentUser.role === 'CLIENT') {
+      const isCreator = project.createdById === currentUser.id;
+      const clientMatch = client && (client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
+      if (!isCreator && !clientMatch) {
+        return res.status(403).json({ message: 'Forbidden: Access to this project is restricted.' });
+      }
+    }
+
+    const completedTasksCount = tasks.filter((t) => t.status === 'COMPLETED').length;
+    const sanitizedTitle = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const filename = `audit-report-${sanitizedTitle}-${new Date().toISOString().split('T')[0]}`;
+
+    if (format === 'csv') {
+      const lines: string[] = [];
+      lines.push('WHITE INK DESIGN STUDIO - PROJECT AUDIT & FINAL HANDOVER REPORT');
+      lines.push(`Generated Date,${escapeCsv(new Date().toISOString())}`);
+      lines.push(`Generated By,${escapeCsv(currentUser.name)} (${escapeCsv(currentUser.role)})`);
+      lines.push('');
+
+      lines.push('=== PROJECT OVERVIEW ===');
+      lines.push(`Project Name,${escapeCsv(project.name)}`);
+      lines.push(`Client,${escapeCsv(client?.company || client?.name || 'N/A')}`);
+      lines.push(`Lead Owner,${escapeCsv(leadOwner?.name || creator?.name || 'White Ink Studio')}`);
+      lines.push(`Status,${project.status}`);
+      lines.push(`Overall Progress,${project.progress}%`);
+      lines.push(`Mandatory Tasks Finished,${completedTasksCount} of ${tasks.length}`);
+      lines.push(`Handover Completed Date,${escapeCsv(project.handoverCompletedAt || 'Completed')}`);
+      lines.push(`Direct Deliverables Link,${escapeCsv(project.driveUrl || 'None configured')}`);
+      lines.push(`Handover Note,${escapeCsv(project.handoverNote || 'All tasks and final deliverables successfully signed off.')}`);
+      lines.push('');
+
+      lines.push('=== MANDATORY TASKS AUDIT ===');
+      lines.push('Task Title,Status,Priority,Progress,Assignee,Due Date');
+      for (const t of tasks) {
+        const assigned = t.assignedToId ? db.getUserById(t.assignedToId) : null;
+        lines.push([
+          escapeCsv(t.title),
+          t.status,
+          t.priority,
+          `${t.progress}%`,
+          escapeCsv(assigned?.name || 'Unassigned'),
+          escapeCsv(t.dueDate || 'N/A'),
+        ].join(','));
+      }
+      lines.push('');
+
+      lines.push('=== CLIENT APPROVALS AUDIT ===');
+      lines.push('Approval Title,Status,Deliverable URL,Requested Date,Reviewed Date');
+      for (const a of approvals) {
+        lines.push([
+          escapeCsv(a.title),
+          a.status,
+          escapeCsv(a.deliverableUrl || 'N/A'),
+          escapeCsv(a.createdAt),
+          escapeCsv(a.reviewedAt || 'Pending'),
+        ].join(','));
+      }
+      lines.push('');
+
+      lines.push('=== HANDOVER DOCUMENTS INVENTORY ===');
+      lines.push('Document Name,Size,Uploaded By,Uploaded Date,Note');
+      for (const d of handoverDocsList) {
+        lines.push([
+          escapeCsv(d.name),
+          escapeCsv(d.size),
+          escapeCsv(d.uploadedByName || 'Team'),
+          escapeCsv(d.uploadedAt),
+          escapeCsv(d.note || ''),
+        ].join(','));
+      }
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+      return res.status(200).send(lines.join('\r\n'));
+    }
+
+    // PDF Generation
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.pdf"`);
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 40,
+      info: {
+        Title: `${project.name} - Handover & Audit Report`,
+        Author: 'White Ink Design Studio',
+      },
+    });
+
+    doc.pipe(res);
+
+    // Header bar
+    doc.rect(40, 40, 515, 60).fill('#8C6D23');
+    doc.fillColor('#FFFFFF').fontSize(16).font('Helvetica-Bold').text('WHITE INK DESIGN STUDIO', 55, 52);
+    doc.fontSize(10).font('Helvetica').text('Official Project Audit & Final Handover Report', 55, 72);
+    doc.fontSize(8.5).fillColor('#F5EDD6').text(`Generated on ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 400, 72);
+
+    let y = 120;
+
+    // Project Details Box
+    doc.rect(40, y, 515, 110).fill('#FBF8EF').stroke('#E8DEC8');
+    doc.fillColor('#241E15').fontSize(14).font('Helvetica-Bold').text(project.name, 55, y + 15);
+    
+    // Status Badge
+    doc.rect(440, y + 14, 100, 20).fill('#8C6D23');
+    doc.fillColor('#FFFFFF').fontSize(9).font('Helvetica-Bold').text('PROJECT CLOSURE', 445, y + 19, { width: 90, align: 'center' });
+
+    doc.fillColor('#666158').fontSize(9).font('Helvetica').text('Client Organization:', 55, y + 42);
+    doc.fillColor('#1E1B18').font('Helvetica-Bold').text(client?.company || client?.name || 'Confidential Client', 160, y + 42);
+
+    doc.fillColor('#666158').font('Helvetica').text('Project Lead / Creator:', 55, y + 58);
+    doc.fillColor('#1E1B18').font('Helvetica-Bold').text(leadOwner?.name || creator?.name || 'White Ink Studio', 160, y + 58);
+
+    doc.fillColor('#666158').font('Helvetica').text('Completion Progress:', 55, y + 74);
+    doc.fillColor('#8C6D23').font('Helvetica-Bold').text(`100% (${completedTasksCount} of ${tasks.length} mandatory tasks finished)`, 160, y + 74);
+
+    if (project.driveUrl) {
+      doc.fillColor('#666158').font('Helvetica').text('Deliverables Folder Link:', 55, y + 90);
+      doc.fillColor('#2563EB').font('Helvetica').text(project.driveUrl, 160, y + 90, { width: 380, ellipsis: true });
+    }
+
+    y += 125;
+
+    // Handover Summary Section
+    doc.fillColor('#8C6D23').fontSize(11).font('Helvetica-Bold').text('HANDOVER STATEMENT & SUMMARY', 40, y);
+    y += 16;
+    doc.moveTo(40, y).lineTo(555, y).strokeColor('#E8DEC8').stroke();
+    y += 8;
+
+    const handoverSummary = project.handoverNote || 'All project tasks, design deliverables, and final package requirements have been verified, approved, and handed over according to agreed design specifications and standards.';
+    doc.fillColor('#332F28').fontSize(9.5).font('Helvetica').text(handoverSummary, 40, y, { width: 515, lineGap: 3 });
+    y += doc.heightOfString(handoverSummary, { width: 515, lineGap: 3 }) + 16;
+
+    // Requirements & Tasks Table
+    if (y > 650) {
+      doc.addPage();
+      y = 40;
+    }
+
+    doc.fillColor('#8C6D23').fontSize(11).font('Helvetica-Bold').text(`MANDATORY TASKS & DELIVERABLES AUDIT (${completedTasksCount}/${tasks.length} COMPLETE)`, 40, y);
+    y += 16;
+    doc.moveTo(40, y).lineTo(555, y).strokeColor('#E8DEC8').stroke();
+    y += 8;
+
+    // Table Header
+    doc.rect(40, y, 515, 18).fill('#F2ECE0');
+    doc.fillColor('#554C3D').fontSize(8.5).font('Helvetica-Bold');
+    doc.text('TASK / DELIVERABLE', 48, y + 4);
+    doc.text('ASSIGNEE', 280, y + 4);
+    doc.text('PRIORITY', 380, y + 4);
+    doc.text('STATUS', 470, y + 4);
+    y += 22;
+
+    for (const task of tasks) {
+      if (y > 750) {
+        doc.addPage();
+        y = 40;
+      }
+      const assigned = task.assignedToId ? db.getUserById(task.assignedToId) : null;
+      doc.fillColor('#1E1B18').fontSize(8.5).font('Helvetica').text(task.title, 48, y, { width: 220, ellipsis: true });
+      doc.fillColor('#666158').text(assigned?.name || 'Team', 280, y, { width: 90, ellipsis: true });
+      doc.fillColor('#666158').text(task.priority, 380, y);
+      doc.fillColor('#059669').font('Helvetica-Bold').text(`[✓] ${task.status}`, 470, y);
+      y += 16;
+    }
+
+    y += 10;
+
+    // Approvals section
+    if (approvals.length > 0) {
+      if (y > 670) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.fillColor('#8C6D23').fontSize(11).font('Helvetica-Bold').text('CLIENT SIGN-OFFS & APPROVALS', 40, y);
+      y += 16;
+      doc.moveTo(40, y).lineTo(555, y).strokeColor('#E8DEC8').stroke();
+      y += 8;
+
+      for (const appr of approvals) {
+        if (y > 750) {
+          doc.addPage();
+          y = 40;
+        }
+        doc.fillColor('#1E1B18').fontSize(8.5).font('Helvetica-Bold').text(appr.title, 48, y);
+        doc.fillColor(appr.status === 'APPROVED' ? '#059669' : '#D97706').text(`Status: ${appr.status}`, 350, y);
+        doc.fillColor('#666158').font('Helvetica').text(appr.reviewedAt ? `Reviewed ${new Date(appr.reviewedAt).toLocaleDateString()}` : 'Recorded', 460, y);
+        y += 15;
+      }
+      y += 10;
+    }
+
+    // Handover Documentation Inventory
+    if (handoverDocsList.length > 0) {
+      if (y > 670) {
+        doc.addPage();
+        y = 40;
+      }
+      doc.fillColor('#8C6D23').fontSize(11).font('Helvetica-Bold').text('SUBMITTED HANDOVER DOCUMENTATION', 40, y);
+      y += 16;
+      doc.moveTo(40, y).lineTo(555, y).strokeColor('#E8DEC8').stroke();
+      y += 8;
+
+      for (const docItem of handoverDocsList) {
+        if (y > 750) {
+          doc.addPage();
+          y = 40;
+        }
+        doc.fillColor('#1E1B18').fontSize(8.5).font('Helvetica-Bold').text(docItem.name, 48, y, { width: 280, ellipsis: true });
+        doc.fillColor('#666158').font('Helvetica').text(`${docItem.size} | By ${docItem.uploadedByName || 'Team'} on ${new Date(docItem.uploadedAt).toLocaleDateString()}`, 340, y);
+        y += 15;
+      }
+      y += 10;
+    }
+
+    // Studio Sign-off Footer
+    if (y > 720) {
+      doc.addPage();
+      y = 40;
+    }
+    y += 15;
+    doc.rect(40, y, 515, 45).fill('#FBF8EF').stroke('#8C6D23');
+    doc.fillColor('#8C6D23').fontSize(9).font('Helvetica-Bold').text('PROJECT AUDIT VERIFICATION CERTIFIED BY WHITE INK DESIGN STUDIO', 55, y + 12);
+    doc.fillColor('#666158').fontSize(8).font('Helvetica').text('All requirements and deliverable packages have been transferred and finalized for client deployment.', 55, y + 26);
+
+    doc.end();
+  } catch (error: any) {
+    console.error('Error generating project audit report:', error);
+    if (!res.headersSent) {
+      return res.status(500).json({ message: 'Failed to generate audit report', error: error.message });
+    }
+  }
+});
+

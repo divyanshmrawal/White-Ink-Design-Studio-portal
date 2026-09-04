@@ -29,7 +29,9 @@ import {
   FileCheck,
   CheckCircle2,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react';
+import { FinalHandoverView } from '../components/projects/FinalHandoverView';
 
 interface ProjectDetailPageProps {
   projectId: string;
@@ -49,6 +51,26 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'tasks' | 'milestones' | 'approvals' | 'team' | 'comments'>('tasks');
+  const [viewMode, setViewMode] = useState<'handover' | 'workspace' | null>(null);
+
+  // Check if all tasks in project are completed (100% done)
+  const tasksTotal = project?.taskCount ?? project?.tasks?.length ?? 0;
+  const tasksDone = project?.completedTaskCount ?? project?.tasks?.filter((t) => t.status === 'COMPLETED').length ?? 0;
+  const isFullyCompleted = tasksTotal > 0 && tasksDone === tasksTotal;
+
+  useEffect(() => {
+    if (project) {
+      const tc = project.taskCount ?? project.tasks?.length ?? 0;
+      const cc = project.completedTaskCount ?? project.tasks?.filter((t) => t.status === 'COMPLETED').length ?? 0;
+      const isComplete = tc > 0 && cc === tc;
+      // Auto-transition to handover view on 100% completion
+      if (viewMode === null) {
+        setViewMode(isComplete ? 'handover' : 'workspace');
+      } else if (!isComplete && viewMode === 'handover') {
+        setViewMode('workspace');
+      }
+    }
+  }, [project, viewMode]);
 
   // Comment input
   const [commentText, setCommentText] = useState('');
@@ -169,6 +191,21 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     return <LoadingSpinner message="Loading project workspace..." size="lg" />;
   }
 
+  // Automatic Handover View rendering when 100% of tasks are completed
+  const activeView = viewMode ?? (isFullyCompleted ? 'handover' : 'workspace');
+  if (activeView === 'handover' && isFullyCompleted) {
+    return (
+      <FinalHandoverView
+        project={project}
+        currentUser={user}
+        canManage={canManage}
+        onBack={onBack}
+        onSwitchToWorkspace={() => setViewMode('workspace')}
+        onProjectUpdated={loadProjectDetails}
+      />
+    );
+  }
+
   // Find users not yet members of this project
   const currentMemberIds = new Set(project.members?.map((m) => m.id) || []);
   const availableUsersToAdd = allUsers.filter(
@@ -188,30 +225,67 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           Back to Projects
         </button>
 
-        {canManage && (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {isFullyCompleted && (
             <button
               type="button"
-              onClick={() => setIsEditProjectOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-black bg-white hover:bg-gold-100 border border-gold-300 rounded-lg transition-colors cursor-pointer"
+              onClick={() => setViewMode('handover')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-[#8C6D23] bg-[#FAF6ED] hover:bg-[#F5EDD6] border border-[#DFCE9F] rounded-lg transition-colors cursor-pointer shadow-2xs"
             >
-              <Edit2 className="h-3.5 w-3.5" />
-              Edit Project
+              <Sparkles className="h-3.5 w-3.5" />
+              Final Handover View
             </button>
-            <button
-              type="button"
-              onClick={() => {
-                setEditingTask(null);
-                setIsTaskModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg shadow-sm transition-colors cursor-pointer btn-hover-lift"
-            >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-              Add Task
-            </button>
-          </div>
-        )}
+          )}
+
+          {canManage && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditProjectOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-black bg-white hover:bg-gold-100 border border-gold-300 rounded-lg transition-colors cursor-pointer"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+                Edit Project
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingTask(null);
+                  setIsTaskModalOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg shadow-sm transition-colors cursor-pointer btn-hover-lift"
+              >
+                <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+                Add Task
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {/* Completion Banner when viewing workspace */}
+      {isFullyCompleted && (
+        <div className="bg-[#FAF6ED] border border-[#DFCE9F] p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-[#F5EDD6] border border-[#DFCE9F] flex items-center justify-center text-[#8C6D23] shrink-0">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-[#1E1B18]">100% Mandatory Tasks Complete</h4>
+              <p className="text-[11px] text-[#7A7162]">
+                This project has reached final handover readiness. All deliverable requirements are signed off.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setViewMode('handover')}
+            className="px-3.5 py-1.5 bg-[#8C6D23] hover:bg-[#7A5F1E] text-white text-xs font-bold rounded-lg transition-colors shadow-2xs shrink-0 cursor-pointer"
+          >
+            Switch to Handover View
+          </button>
+        </div>
+      )}
 
       {/* Project Banner Card */}
       <div className="bg-white rounded-xl border border-gold-300 shadow-sm p-6 sm:p-7 space-y-5">

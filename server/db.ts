@@ -72,8 +72,24 @@ export interface ProjectRecord {
   estimatedBudget?: number | null;
   leadOwnerId?: string | null;
   preferredMeetingTime?: string | null;
+  handoverNote?: string | null;
+  driveUrl?: string | null;
+  handoverDocs?: string | null;
+  handoverCompletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface HandoverDocRecord {
+  id: string;
+  name: string;
+  size: string;
+  type?: string;
+  dataUrl?: string | null;
+  uploadedAt: string;
+  uploadedById?: string;
+  uploadedByName?: string;
+  note?: string | null;
 }
 
 export interface ProjectMemberRecord {
@@ -451,13 +467,15 @@ class DatabaseService {
           createdAt: c.createdAt.toISOString(),
           updatedAt: c.updatedAt.toISOString(),
         })) as ClientRecord[],
-        projects: projects.map((p) => ({
+        projects: projects.map((p: any) => ({
           ...p,
           startDate: p.startDate ? p.startDate.toISOString() : null,
           dueDate: p.dueDate ? p.dueDate.toISOString() : null,
+          preferredMeetingTime: p.preferredMeetingTime ? p.preferredMeetingTime.toISOString() : null,
+          handoverCompletedAt: p.handoverCompletedAt ? p.handoverCompletedAt.toISOString() : null,
           createdAt: p.createdAt.toISOString(),
           updatedAt: p.updatedAt.toISOString(),
-        })) as ProjectRecord[],
+        })) as unknown as ProjectRecord[],
         projectMembers: projectMembers as ProjectMemberRecord[],
         tasks: tasks.map((t) => ({
           ...t,
@@ -644,11 +662,19 @@ class DatabaseService {
       return sum + (task.progress || 0);
     }, 0);
 
-    project.progress = Math.round(totalProgress / projectTasks.length);
-    if (project.progress === 100 && project.status === 'ACTIVE') {
+    const allTasksCompleted = projectTasks.length > 0 && projectTasks.every((t) => t.status === 'COMPLETED');
+    if (allTasksCompleted) {
+      project.progress = 100;
       project.status = 'COMPLETED';
-    } else if (project.progress < 100 && project.status === 'COMPLETED') {
-      project.status = 'ACTIVE';
+      if (!project.handoverCompletedAt) {
+        project.handoverCompletedAt = new Date().toISOString();
+      }
+    } else {
+      project.progress = Math.min(Math.round(totalProgress / projectTasks.length), 99);
+      if (project.status === 'COMPLETED') {
+        project.status = 'ACTIVE';
+        project.handoverCompletedAt = null;
+      }
     }
     project.updatedAt = new Date().toISOString();
 
@@ -659,6 +685,7 @@ class DatabaseService {
           data: {
             progress: project.progress,
             status: project.status,
+            handoverCompletedAt: project.handoverCompletedAt ? new Date(project.handoverCompletedAt) : null,
           },
         })
         .catch(() => {});
@@ -878,6 +905,10 @@ class DatabaseService {
             estimatedBudget: newProject.estimatedBudget || null,
             leadOwnerId: newProject.leadOwnerId || null,
             preferredMeetingTime: newProject.preferredMeetingTime ? new Date(newProject.preferredMeetingTime) : null,
+            handoverNote: newProject.handoverNote || null,
+            driveUrl: newProject.driveUrl || null,
+            handoverDocs: newProject.handoverDocs || null,
+            handoverCompletedAt: newProject.handoverCompletedAt ? new Date(newProject.handoverCompletedAt) : null,
           },
         })
         .catch(() => {});
@@ -902,6 +933,7 @@ class DatabaseService {
     const prismaData: any = { ...updates };
     if (updates.startDate !== undefined) prismaData.startDate = updates.startDate ? new Date(updates.startDate) : null;
     if (updates.dueDate !== undefined) prismaData.dueDate = updates.dueDate ? new Date(updates.dueDate) : null;
+    if (updates.handoverCompletedAt !== undefined) prismaData.handoverCompletedAt = updates.handoverCompletedAt ? new Date(updates.handoverCompletedAt) : null;
 
     if (prisma && this.isPrismaActive) {
       prisma.project
@@ -913,6 +945,56 @@ class DatabaseService {
     }
 
     return this.data.projects[index];
+  }
+
+  public addHandoverDoc(projectId: string, doc: Omit<HandoverDocRecord, 'id' | 'uploadedAt'> & { id?: string }) {
+    const project = this.getProjectById(projectId);
+    if (!project) return null;
+
+    let docs: HandoverDocRecord[] = [];
+    if (project.handoverDocs) {
+      try {
+        docs = JSON.parse(project.handoverDocs);
+      } catch (e) {
+        docs = [];
+      }
+    }
+
+    const newDoc: HandoverDocRecord = {
+      ...doc,
+      id: doc.id || `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      uploadedAt: new Date().toISOString(),
+    };
+
+    docs.push(newDoc);
+    this.updateProject(projectId, {
+      handoverDocs: JSON.stringify(docs),
+    });
+
+    return newDoc;
+  }
+
+  public deleteHandoverDoc(projectId: string, docId: string) {
+    const project = this.getProjectById(projectId);
+    if (!project) return false;
+
+    let docs: HandoverDocRecord[] = [];
+    if (project.handoverDocs) {
+      try {
+        docs = JSON.parse(project.handoverDocs);
+      } catch (e) {
+        docs = [];
+      }
+    }
+
+    const filtered = docs.filter((d) => d.id !== docId);
+    if (filtered.length === docs.length) return false;
+
+    this.updateProject(projectId, {
+      handoverDocs: JSON.stringify(filtered),
+    });
+
+    return true;
   }
 
   public deleteProject(id: string) {

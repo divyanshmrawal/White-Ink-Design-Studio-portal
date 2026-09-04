@@ -101,6 +101,11 @@ export interface Project {
   estimatedBudget?: number | null;
   leadOwnerId?: string | null;
   preferredMeetingTime?: string | null;
+  handoverNote?: string | null;
+  driveUrl?: string | null;
+  handoverDocs?: string | null;
+  handoverDocsList?: HandoverDocument[];
+  handoverCompletedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   client?: Client | null;
@@ -120,6 +125,18 @@ export interface Project {
     reviewTasks: number;
     completedTasks: number;
   };
+}
+
+export interface HandoverDocument {
+  id: string;
+  name: string;
+  size: string;
+  type?: string;
+  dataUrl?: string | null;
+  uploadedAt: string;
+  uploadedById?: string;
+  uploadedByName?: string;
+  note?: string | null;
 }
 
 export interface RevisionRequest {

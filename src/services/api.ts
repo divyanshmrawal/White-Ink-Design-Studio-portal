@@ -15,6 +15,7 @@ import {
   Attendance,
   AttendanceStats,
   AttendanceStatus,
+  HandoverDocument,
 } from '../types';
 
 const API_BASE = '/api';
@@ -167,12 +168,52 @@ export const api = {
       dueDate?: string;
       status: ProjectStatus;
       priority: ProjectPriority;
+      handoverNote?: string | null;
+      driveUrl?: string | null;
     }>
   ) =>
     request<Project>(`/projects/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     }),
+
+  uploadHandoverDoc: (
+    projectId: string,
+    payload: {
+      name: string;
+      size?: string;
+      type?: string;
+      dataUrl?: string;
+      note?: string;
+    }
+  ) =>
+    request<{ message: string; doc: HandoverDocument; handoverDocs: HandoverDocument[] }>(
+      `/projects/${projectId}/handover-docs`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
+
+  deleteHandoverDoc: (projectId: string, docId: string) =>
+    request<{ message: string; handoverDocs: HandoverDocument[] }>(
+      `/projects/${projectId}/handover-docs/${docId}`,
+      {
+        method: 'DELETE',
+      }
+    ),
+
+  downloadProjectAuditReport: async (projectId: string, format: 'pdf' | 'csv' = 'pdf'): Promise<Blob> => {
+    const response = await fetch(`${API_BASE}/projects/${projectId}/audit-report?format=${format}`, {
+      method: 'GET',
+      headers: getAuthHeader(),
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to download project audit report');
+    }
+    return response.blob();
+  },
 
   deleteProject: (id: string) =>
     request<{ message: string; deletedId: string }>(`/projects/${id}`, {
