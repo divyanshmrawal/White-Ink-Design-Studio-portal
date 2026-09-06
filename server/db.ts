@@ -110,6 +110,15 @@ export interface TaskRecord {
   progress: number;
   dueDate?: string | null;
   revisionRequest?: string | null; // JSON string of RevisionRequest
+  submissionDescription?: string | null;
+  proofDetails?: string | null;
+  deliverableUrl?: string | null;
+  submittedById?: string | null;
+  submittedAt?: string | null;
+  clientApprovalStatus?: ApprovalStatus;
+  clientReviewComments?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -480,6 +489,8 @@ class DatabaseService {
         tasks: tasks.map((t) => ({
           ...t,
           dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+          submittedAt: t.submittedAt ? t.submittedAt.toISOString() : null,
+          reviewedAt: t.reviewedAt ? t.reviewedAt.toISOString() : null,
           createdAt: t.createdAt.toISOString(),
           updatedAt: t.updatedAt.toISOString(),
         })) as TaskRecord[],
@@ -665,10 +676,7 @@ class DatabaseService {
     const allTasksCompleted = projectTasks.length > 0 && projectTasks.every((t) => t.status === 'COMPLETED');
     if (allTasksCompleted) {
       project.progress = 100;
-      project.status = 'COMPLETED';
-      if (!project.handoverCompletedAt) {
-        project.handoverCompletedAt = new Date().toISOString();
-      }
+      if (project.status !== 'COMPLETED') project.status = 'ACTIVE';
     } else {
       project.progress = Math.min(Math.round(totalProgress / projectTasks.length), 99);
       if (project.status === 'COMPLETED') {
@@ -1092,6 +1100,7 @@ class DatabaseService {
     const newTask: TaskRecord = {
       ...task,
       progress: initialProgress,
+      clientApprovalStatus: task.clientApprovalStatus || 'PENDING',
       createdAt: now,
       updatedAt: now,
     };
@@ -1112,6 +1121,15 @@ class DatabaseService {
             priority: newTask.priority,
             progress: newTask.progress,
             dueDate: newTask.dueDate ? new Date(newTask.dueDate) : null,
+            submissionDescription: newTask.submissionDescription,
+            proofDetails: newTask.proofDetails,
+            deliverableUrl: newTask.deliverableUrl,
+            submittedById: newTask.submittedById,
+            submittedAt: newTask.submittedAt ? new Date(newTask.submittedAt) : null,
+            clientApprovalStatus: newTask.clientApprovalStatus,
+            clientReviewComments: newTask.clientReviewComments,
+            reviewedById: newTask.reviewedById,
+            reviewedAt: newTask.reviewedAt ? new Date(newTask.reviewedAt) : null,
           },
         })
         .catch(() => {});
@@ -1164,6 +1182,8 @@ class DatabaseService {
 
     const prismaData: any = { ...updates, progress: newProgress };
     if (updates.dueDate !== undefined) prismaData.dueDate = updates.dueDate ? new Date(updates.dueDate) : null;
+    if (updates.submittedAt !== undefined) prismaData.submittedAt = updates.submittedAt ? new Date(updates.submittedAt) : null;
+    if (updates.reviewedAt !== undefined) prismaData.reviewedAt = updates.reviewedAt ? new Date(updates.reviewedAt) : null;
 
     if (prisma && this.isPrismaActive) {
       prisma.task

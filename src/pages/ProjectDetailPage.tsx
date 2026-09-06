@@ -32,6 +32,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { FinalHandoverView } from '../components/projects/FinalHandoverView';
+import { SubmitTaskModal } from '../components/tasks/SubmitTaskModal';
 
 interface ProjectDetailPageProps {
   projectId: string;
@@ -53,17 +54,11 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [activeTab, setActiveTab] = useState<'tasks' | 'milestones' | 'approvals' | 'team' | 'comments'>('tasks');
   const [viewMode, setViewMode] = useState<'handover' | 'workspace' | null>(null);
 
-  // Check if all tasks in project are completed (100% done)
-  const tasksTotal = project?.taskCount ?? project?.tasks?.length ?? 0;
-  const tasksDone = project?.completedTaskCount ?? project?.tasks?.filter((t) => t.status === 'COMPLETED').length ?? 0;
-  const isFullyCompleted = tasksTotal > 0 && tasksDone === tasksTotal;
+  const isFullyCompleted = project?.handoverEligibility?.eligible ?? project?.handoverEligible ?? false;
 
   useEffect(() => {
     if (project) {
-      const tc = project.taskCount ?? project.tasks?.length ?? 0;
-      const cc = project.completedTaskCount ?? project.tasks?.filter((t) => t.status === 'COMPLETED').length ?? 0;
-      const isComplete = tc > 0 && cc === tc;
-      // Auto-transition to handover view on 100% completion
+      const isComplete = project.handoverEligibility?.eligible ?? project.handoverEligible ?? false;
       if (viewMode === null) {
         setViewMode(isComplete ? 'handover' : 'workspace');
       } else if (!isComplete && viewMode === 'handover') {
@@ -84,6 +79,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [clientViewTask, setClientViewTask] = useState<Task | null>(null);
   const [requestChangesTask, setRequestChangesTask] = useState<Task | null>(null);
+  const [submitTask, setSubmitTask] = useState<Task | null>(null);
 
   // Add Member Modal
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -191,7 +187,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
     return <LoadingSpinner message="Loading project workspace..." size="lg" />;
   }
 
-  // Automatic Handover View rendering when 100% of tasks are completed
+  // Handover is available only after the server confirms every task is approved.
   const activeView = viewMode ?? (isFullyCompleted ? 'handover' : 'workspace');
   if (activeView === 'handover' && isFullyCompleted) {
     return (
@@ -500,6 +496,29 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         <option value="COMPLETED">Completed</option>
                         <option value="REVISION_REQUESTED">Revision Requested</option>
                       </select>
+                    )}
+
+                    {!isClient && task.progress === 100 && task.status !== 'REVIEW' && task.status !== 'COMPLETED' && task.assignedToId === user?.id && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setSubmitTask(task); }}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg cursor-pointer"
+                      >
+                        <Send className="h-3 w-3" />
+                        Submit for Client Approval
+                      </button>
+                    )}
+
+                    {task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING' && (
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                        Awaiting Client Approval
+                      </span>
+                    )}
+
+                    {task.clientApprovalStatus === 'APPROVED' && (
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                        Client Approved
+                      </span>
                     )}
 
                     {canManage && (
@@ -840,6 +859,14 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         users={allUsers}
         defaultProjectId={project.id}
       />
+
+      {submitTask && (
+        <SubmitTaskModal
+          task={submitTask}
+          onClose={() => setSubmitTask(null)}
+          onSubmitted={() => { setSubmitTask(null); loadProjectDetails(); }}
+        />
+      )}
 
       {/* Add Member Simple Modal */}
       {isAddMemberOpen && (

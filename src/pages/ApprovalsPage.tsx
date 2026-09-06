@@ -78,11 +78,9 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
       ]);
       setApprovals(approvalsRes);
       setProjects(projectsRes);
-      setTaskApprovals(
-        tasksRes.filter((task) =>
-          ['REVIEW', 'REVISION_REQUESTED', 'COMPLETED'].includes(task.status)
-        )
-      );
+      setTaskApprovals(tasksRes.filter((task) =>
+        Boolean(task.submittedAt) && ['REVIEW', 'REVISION_REQUESTED', 'COMPLETED'].includes(task.status)
+      ));
     } catch (err) {
       console.error('Error loading approvals:', err);
     } finally {
@@ -190,7 +188,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   };
 
   const taskStatus = (task: Task): ApprovalStatus => {
-    if (task.status === 'COMPLETED') return 'APPROVED';
+    if (task.clientApprovalStatus === 'APPROVED') return 'APPROVED';
     if (task.status === 'REVISION_REQUESTED') return 'REJECTED';
     return 'PENDING';
   };
@@ -425,6 +423,19 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                           <p className="text-xs text-black/70 leading-relaxed max-w-2xl font-medium">
                             {task.description}
                           </p>
+                        )}
+                        {task.submissionDescription && (
+                          <div className="p-3 bg-gold-50 rounded-lg border border-gold-200 text-xs mt-2 space-y-1">
+                            <div className="font-bold text-black">Completion details</div>
+                            <p className="text-black/75">{task.submissionDescription}</p>
+                            <div className="font-bold text-black pt-1">Proof</div>
+                            <p className="text-black/75">{task.proofDetails}</p>
+                            {task.deliverableUrl && (
+                              <a href={task.deliverableUrl.startsWith('http') ? task.deliverableUrl : `https://${task.deliverableUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gold-800 font-bold pt-1">
+                                <ExternalLink className="h-3 w-3" /> View deliverable
+                              </a>
+                            )}
+                          </div>
                         )}
                         {task.revisionRequest && (
                           <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs mt-2">

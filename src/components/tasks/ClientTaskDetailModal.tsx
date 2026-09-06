@@ -5,12 +5,9 @@ import { api } from '../../services/api';
 import {
   X,
   Calendar,
-  Paperclip,
-  FileText,
   CheckCircle2,
   RefreshCw,
   Send,
-  Download,
   MessageSquare,
 } from 'lucide-react';
 
@@ -19,15 +16,6 @@ interface ClientTaskDetailModalProps {
   onClose: () => void;
   onApproved: () => void;
   onRequestChanges: (task: Task) => void;
-}
-
-// Derive mock attachments from task description keywords so they feel contextual
-function getMockAttachments(task: Task) {
-  const base = [
-    { name: `${task.title.replace(/\s+/g, '_').slice(0, 28)}_v1.pdf`, size: '4.2 MB', type: 'PDF' },
-    { name: `Concept_Final.svg`, size: '840 KB', type: 'SVG' },
-  ];
-  return base;
 }
 
 export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
@@ -42,8 +30,6 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
   const [isPosting, setIsPosting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [loadingComments, setLoadingComments] = useState(true);
-
-  const attachments = getMockAttachments(task);
 
   const loadComments = useCallback(async () => {
     setLoadingComments(true);
@@ -99,8 +85,9 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
     });
   };
 
-  const isAlreadyApproved = task.status === 'COMPLETED';
+  const isAlreadyApproved = task.clientApprovalStatus === 'APPROVED';
   const isRevisionRequested = task.status === 'REVISION_REQUESTED';
+  const isSubmitted = Boolean(task.submittedAt);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -166,62 +153,39 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
             </p>
           </div>
 
-          {/* Attachments */}
-          <div className="px-5 pb-4 space-y-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-black uppercase tracking-wider">
-              <Paperclip className="h-3.5 w-3.5 text-gold-600" />
-              Attachments ({attachments.length})
+          {isSubmitted && (
+            <div className="px-5 pb-4 space-y-2">
+              <div className="text-xs font-bold text-black uppercase tracking-wider">Submitted work</div>
+              <div className="p-3 bg-gold-50 border border-gold-200 rounded-xl space-y-2 text-sm text-black/80">
+                <div><span className="font-bold text-black">Completion:</span> {task.submissionDescription}</div>
+                <div><span className="font-bold text-black">Proof:</span> {task.proofDetails}</div>
+                {task.deliverableUrl && <a href={task.deliverableUrl.startsWith('http') ? task.deliverableUrl : `https://${task.deliverableUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-bold text-gold-800"><Send className="h-3 w-3" /> Open deliverable</a>}
+                {task.submittedAt && <div className="text-xs text-black/55">Submitted {formatTime(task.submittedAt)}</div>}
+              </div>
             </div>
-            <div className="space-y-2">
-              {attachments.map((file) => (
-                <div
-                  key={file.name}
-                  className="flex items-center justify-between p-3 bg-gold-50 border border-gold-200 rounded-xl"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-white border border-gold-300 flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-gold-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-black truncate max-w-[180px]">{file.name}</p>
-                      <p className="text-[11px] text-black/50 font-medium">
-                        {file.size} · {file.type}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="p-1.5 rounded-lg text-black/50 hover:text-black hover:bg-gold-200 transition-colors cursor-pointer shrink-0"
-                    title="Download"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Action Buttons */}
           <div className="px-5 pb-5 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={handleApprove}
-              disabled={isApproving || isAlreadyApproved || isRevisionRequested}
+              disabled={isApproving || isAlreadyApproved || isRevisionRequested || !isSubmitted || task.status !== 'REVIEW'}
               className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                 isAlreadyApproved
                   ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 cursor-default'
-                  : isRevisionRequested
+                  : isRevisionRequested || !isSubmitted || task.status !== 'REVIEW'
                   ? 'bg-gold-100 text-black/40 border border-gold-200 cursor-default'
                   : 'bg-[#8B7355] hover:bg-[#7a6347] text-white border border-[#7a6347] shadow-sm btn-hover-lift'
               } disabled:opacity-60`}
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              {isAlreadyApproved ? 'Approved' : isApproving ? 'Approving...' : 'Approve Task'}
+              {isAlreadyApproved ? 'Approved' : !isSubmitted ? 'Not Submitted' : isApproving ? 'Approving...' : 'Approve Task'}
             </button>
             <button
               type="button"
               onClick={() => onRequestChanges(task)}
-              disabled={isAlreadyApproved || isRevisionRequested}
+              disabled={isAlreadyApproved || isRevisionRequested || !isSubmitted || task.status !== 'REVIEW'}
               className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold bg-white hover:bg-gold-50 text-black border border-gold-400 transition-all cursor-pointer btn-hover-lift disabled:opacity-40 disabled:cursor-default"
             >
               <RefreshCw className="h-4 w-4 shrink-0" />

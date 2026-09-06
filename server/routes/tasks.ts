@@ -193,6 +193,12 @@ tasksRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
       if (!isAssigned && !isProjectMember && existing.createdById !== currentUser.id) {
         return res.status(403).json({ message: 'You can only update tasks in projects you are assigned to.' });
       }
+      if (status === 'COMPLETED') {
+        return res.status(400).json({ message: 'Complete the work at 100%, then submit it for client approval.' });
+      }
+      if (status === 'REVIEW') {
+        return res.status(400).json({ message: 'Use Submit for Client Approval after reaching 100% progress.' });
+      }
     }
 
     const updates: any = {};
@@ -234,7 +240,7 @@ tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res:
   if (!project) return res.status(404).json({ message: 'Project not found.' });
 
   const client = db.getClientById(project.clientId);
-  if (!client || client.email.toLowerCase() !== currentUser.email.toLowerCase()) {
+  if (!client || (client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id)) {
     return res.status(403).json({ message: 'Forbidden.' });
   }
 
@@ -249,6 +255,10 @@ tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res:
   const updated = db.updateTask(id, {
     status: 'REVISION_REQUESTED',
     revisionRequest: JSON.stringify(revisionRequest),
+    clientApprovalStatus: 'REJECTED',
+    clientReviewComments: feedback.trim(),
+    reviewedById: currentUser.id,
+    reviewedAt: new Date().toISOString(),
   });
 
   db.logActivity({
@@ -312,7 +322,20 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
     return res.status(403).json({ message: 'Forbidden: This task does not belong to your project.' });
   }
 
-  const updated = db.updateTask(id, { status: 'COMPLETED' });
+  if (task.status !== 'REVIEW') {
+    return res.status(400).json({ message: 'Task must be submitted for review before it can be approved.' });
+  }
+
+  if (task.progress !== 100 || !task.submittedAt || task.clientApprovalStatus !== 'PENDING') {
+    return res.status(400).json({ message: 'Only submitted tasks at 100% completion can be approved.' });
+  }
+
+  const updated = db.updateTask(id, {
+    status: 'COMPLETED',
+    clientApprovalStatus: 'APPROVED',
+    reviewedById: currentUser.id,
+    reviewedAt: new Date().toISOString(),
+  });
 
   // Log activity
   db.logActivity({
@@ -336,6 +359,29 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
     });
   }
 
+  const projectTasks = db.getTasks().filter((projectTask) => projectTask.projectId === task.projectId);
+  const projectReadyForHandover = projectTasks.length > 0 && projectTasks.every((projectTask) =>
+    projectTask.progress === 100 &&
+    Boolean(projectTask.submittedAt) &&
+    projectTask.clientApprovalStatus === 'APPROVED' &&
+    projectTask.status === 'COMPLETED'
+  );
+  if (projectReadyForHandover && project) {
+    db.getUsers()
+      .filter((recipient) => ['ADMIN', 'SUPER_ADMIN'].includes(recipient.role) || recipient.id === project.createdById)
+      .forEach((recipient) => {
+        db.createNotification({
+          id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          userId: recipient.id,
+          title: 'Project Ready for Handover',
+          message: `All tasks for "${project.name}" have been approved by the client.`,
+          type: 'APPROVAL_RESOLVED',
+          linkUrl: `/projects/${project.id}`,
+          isRead: false,
+        });
+      });
+  }
+
   return res.json(updated);
 });
 
@@ -349,13 +395,24 @@ tasksRouter.patch('/:id/status', requireAuth, (req: AuthenticatedRequest, res: R
     return res.status(403).json({ message: 'Clients cannot change task status.' });
   }
 
-  if (!status || !['TODO', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'REVISION_REQUESTED'].includes(status)) {
+  if (!status || !['TODO', 'IN_PROGRESS', 'REVIEW', 'REVISION_REQUESTED'].includes(status)) {
     return res.status(400).json({ message: 'Invalid status value.' });
   }
 
   const existing = db.getTaskById(id);
   if (!existing) {
     return res.status(404).json({ message: 'Task not found.' });
+  }
+
+  if (currentUser.role === 'TEAM_MEMBER') {
+    const isAssigned = existing.assignedToId === currentUser.id;
+    if (!isAssigned) return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
+    if (status === 'COMPLETED') {
+      return res.status(400).json({ message: 'Complete the work at 100%, then submit it for client approval.' });
+    }
+    if (status === 'REVIEW') {
+      return res.status(400).json({ message: 'Use Submit for Client Approval after reaching 100% progress.' });
+    }
   }
 
   const updated = db.updateTask(id, { status: status as TaskStatus });
@@ -381,7 +438,70 @@ tasksRouter.patch('/:id/progress', requireAuth, (req: AuthenticatedRequest, res:
     return res.status(404).json({ message: 'Task not found.' });
   }
 
+  if (currentUser.role === 'TEAM_MEMBER' && existing.assignedToId !== currentUser.id) {
+    return res.status(403).json({ message: 'You can only update tasks assigned to you.' });
+  }
+
   const updated = db.updateTask(id, { progress: Math.round(progress) });
+  return res.json(updated);
+});
+
+// POST /api/tasks/:id/submit — assigned team member submits completed work for client review
+tasksRouter.post('/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
+  const { id } = req.params;
+  const { submissionDescription, proofDetails, deliverableUrl } = req.body;
+
+  if (currentUser.role !== 'TEAM_MEMBER') {
+    return res.status(403).json({ message: 'Only the assigned team member can submit this task.' });
+  }
+  if (!submissionDescription?.trim() || !proofDetails?.trim()) {
+    return res.status(400).json({ message: 'Completion description and proof details are required.' });
+  }
+
+  const task = db.getTaskById(id);
+  if (!task) return res.status(404).json({ message: 'Task not found.' });
+  if (task.assignedToId !== currentUser.id) return res.status(403).json({ message: 'You can only submit tasks assigned to you.' });
+  if (task.progress !== 100) return res.status(400).json({ message: 'Task progress must be 100% before submission.' });
+  if (task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING') {
+    return res.status(400).json({ message: 'This task is already awaiting client approval.' });
+  }
+  if (task.clientApprovalStatus === 'APPROVED') {
+    return res.status(400).json({ message: 'This task has already been approved.' });
+  }
+
+  const project = db.getProjectById(task.projectId);
+  const submittedAt = new Date().toISOString();
+  const updated = db.updateTask(id, {
+    status: 'REVIEW',
+    clientApprovalStatus: 'PENDING',
+    submissionDescription: submissionDescription.trim(),
+    proofDetails: proofDetails.trim(),
+    deliverableUrl: deliverableUrl?.trim() || null,
+    submittedById: currentUser.id,
+    submittedAt,
+    clientReviewComments: null,
+    reviewedById: null,
+    reviewedAt: null,
+    revisionRequest: null,
+  });
+
+  if (project) {
+    const client = db.getClientById(project.clientId);
+    const clientUser = client ? db.getUsers().find((u) => u.email.toLowerCase() === client.email.toLowerCase()) : null;
+    if (clientUser) {
+      db.createNotification({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: clientUser.id,
+        title: 'Task Submitted for Approval',
+        message: `Task "${task.title}" is ready for your review.`,
+        type: 'APPROVAL_REQUESTED',
+        linkUrl: `/projects/${task.projectId}`,
+        isRead: false,
+      });
+    }
+  }
+
   return res.json(updated);
 });
 

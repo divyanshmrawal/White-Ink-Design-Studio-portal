@@ -118,6 +118,16 @@ export interface Project {
   taskCount?: number;
   completedTaskCount?: number;
   pendingApprovalsCount?: number;
+  handoverEligible?: boolean;
+  handoverEligibility?: {
+    eligible: boolean;
+    totalTasks: number;
+    completedTasks: number;
+    submittedTasks: number;
+    approvedTasks: number;
+    pendingTasks: number;
+    revisionRequestedTasks: number;
+  };
   stats?: {
     totalTasks: number;
     todoTasks: number;
@@ -159,6 +169,15 @@ export interface Task {
   progress: number;
   dueDate?: string | null;
   revisionRequest?: RevisionRequest | null;
+  submissionDescription?: string | null;
+  proofDetails?: string | null;
+  deliverableUrl?: string | null;
+  submittedById?: string | null;
+  submittedAt?: string | null;
+  clientApprovalStatus?: ApprovalStatus;
+  clientReviewComments?: string | null;
+  reviewedById?: string | null;
+  reviewedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
   project?: { id: string; name: string; status?: ProjectStatus } | null;

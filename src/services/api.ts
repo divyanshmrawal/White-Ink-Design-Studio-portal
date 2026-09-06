@@ -295,6 +295,12 @@ export const api = {
       method: 'PATCH',
     }),
 
+  submitTask: (id: string, payload: { submissionDescription: string; proofDetails: string; deliverableUrl?: string }) =>
+    request<Task>(`/tasks/${id}/submit`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   submitRevisionRequest: (id: string, payload: {
     feedback: string;
     priority: 'LOW' | 'MEDIUM' | 'HIGH';

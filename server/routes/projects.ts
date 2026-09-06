@@ -75,6 +75,9 @@ projectsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) 
     }).filter(Boolean);
     const tasks = db.getTasks().filter((t) => t.projectId === proj.id);
     const completedTasks = tasks.filter((t) => t.status === 'COMPLETED').length;
+    const handoverEligible = tasks.length > 0 && tasks.every((t) =>
+      t.progress === 100 && Boolean(t.submittedAt) && t.clientApprovalStatus === 'APPROVED' && t.status === 'COMPLETED'
+    );
 
     return {
       ...proj,
@@ -83,6 +86,7 @@ projectsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) 
       members,
       taskCount: tasks.length,
       completedTaskCount: completedTasks,
+      handoverEligible,
     };
   });
 
@@ -161,6 +165,20 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
   }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const pendingApprovalsCount = approvals.filter((a) => a.status === 'PENDING').length;
+  const handoverEligibility = {
+    eligible: tasks.length > 0 && tasks.every((task) =>
+      task.progress === 100 &&
+      Boolean(task.submittedAt) &&
+      task.clientApprovalStatus === 'APPROVED' &&
+      task.status === 'COMPLETED'
+    ),
+    totalTasks: tasks.length,
+    completedTasks: tasks.filter((task) => task.progress === 100).length,
+    submittedTasks: tasks.filter((task) => Boolean(task.submittedAt)).length,
+    approvedTasks: tasks.filter((task) => task.clientApprovalStatus === 'APPROVED').length,
+    pendingTasks: tasks.filter((task) => task.clientApprovalStatus === 'PENDING').length,
+    revisionRequestedTasks: tasks.filter((task) => task.status === 'REVISION_REQUESTED').length,
+  };
 
   let handoverDocsList = [];
   if (project.handoverDocs) {
@@ -180,6 +198,7 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
     milestones,
     approvals,
     pendingApprovalsCount,
+    handoverEligibility,
     handoverDocsList,
     comments,
     stats: {
@@ -483,6 +502,10 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
       return res.status(404).json({ message: 'Project not found.' });
     }
 
+    if (project.status !== 'COMPLETED') {
+      return res.status(400).json({ message: 'Project must be marked complete before uploading handover documents.' });
+    }
+
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
     const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
 
@@ -545,6 +568,33 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
     console.error('Error uploading handover document:', error);
     return res.status(500).json({ message: 'Failed to upload handover document.' });
   }
+});
+
+// PATCH /api/projects/:id/complete (SUPER_ADMIN, ADMIN)
+projectsRouter.patch('/:id/complete', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const project = db.getProjectById(id);
+
+  if (!project) {
+    return res.status(404).json({ message: 'Project not found.' });
+  }
+
+  const projectTasks = db.getTasks().filter((task) => task.projectId === id);
+  if (projectTasks.length === 0 || !projectTasks.every((task) => task.status === 'COMPLETED')) {
+    return res.status(400).json({ message: 'All tasks must be completed before the project can be marked complete.' });
+  }
+
+  const approvals = db.getApprovalsByProjectId(id);
+  if (approvals.some((approval) => approval.status !== 'APPROVED')) {
+    return res.status(400).json({ message: 'All client approvals must be approved before the project can be marked complete.' });
+  }
+
+  const updated = db.updateProject(id, {
+    status: 'COMPLETED',
+    handoverCompletedAt: new Date().toISOString(),
+  });
+
+  return res.json(updated);
 });
 
 // DELETE /api/projects/:id/handover-docs/:docId (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER)
