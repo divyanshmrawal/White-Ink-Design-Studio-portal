@@ -200,7 +200,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <StatusBadge status={project.status} size="sm" />
-                    <PriorityBadge priority={project.priority} size="sm" />
+                    {user?.role !== 'CLIENT' && <PriorityBadge priority={project.priority} size="sm" />}
                   </div>
 
                   {canManage && (
@@ -261,7 +261,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                     <span className="text-black/70 font-semibold">Calculated Progress</span>
                     <span className="font-extrabold text-black">{project.progress}%</span>
                   </div>
-                  <ProgressBar progress={project.progress} size="md" />
+                  <ProgressBar progress={project.progress} size="md" showLabel={false} />
                 </div>
               </div>
 

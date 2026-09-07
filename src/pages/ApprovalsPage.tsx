@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { ClientApproval, Project, ApprovalStatus, Task } from '../types';
 import { RequestChangesModal } from '../components/tasks/RequestChangesModal';
+import { ClientTaskDetailModal } from '../components/tasks/ClientTaskDetailModal';
 import {
   FileCheck,
   Plus,
@@ -61,6 +62,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   const [reviewError, setReviewError] = useState('');
   const [taskActionLoading, setTaskActionLoading] = useState<string | null>(null);
   const [requestChangesTask, setRequestChangesTask] = useState<Task | null>(null);
+  const [clientViewTask, setClientViewTask] = useState<Task | null>(null);
 
   const loadData = async () => {
     try {
@@ -175,6 +177,15 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   };
 
   const handleApproveTask = async (task: Task) => {
+    if (
+      task.progress !== 100 ||
+      !task.submittedAt ||
+      !task.submissionDescription?.trim() ||
+      !task.proofDetails?.trim()
+    ) {
+      alert('Task must reach 100% completion with submission description and proof details before approval.');
+      return;
+    }
     if (!window.confirm(`Approve task "${task.title}"?`)) return;
     try {
       setTaskActionLoading(task.id);
@@ -403,7 +414,10 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                   return (
                     <div
                       key={`task-${task.id}`}
-                      className="bg-white rounded-xl border border-gold-300 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5"
+                      onClick={() => isClient && setClientViewTask(task)}
+                      className={`bg-white rounded-xl border border-gold-300 p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5 transition-all ${
+                        isClient ? 'cursor-pointer hover:border-gold-500 hover:shadow-md' : ''
+                      }`}
                     >
                       <div className="space-y-2 flex-1 min-w-0">
                         <div className="flex items-center gap-2.5 flex-wrap">
@@ -431,7 +445,13 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                             <div className="font-bold text-black pt-1">Proof</div>
                             <p className="text-black/75">{task.proofDetails}</p>
                             {task.deliverableUrl && (
-                              <a href={task.deliverableUrl.startsWith('http') ? task.deliverableUrl : `https://${task.deliverableUrl}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-gold-800 font-bold pt-1">
+                              <a
+                                href={task.deliverableUrl.startsWith('http') ? task.deliverableUrl : `https://${task.deliverableUrl}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1 text-gold-800 font-bold pt-1"
+                              >
                                 <ExternalLink className="h-3 w-3" /> View deliverable
                               </a>
                             )}
@@ -445,26 +465,57 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                         )}
                       </div>
 
-                      {isClient && isPending && (
-                        <div className="flex items-center gap-2 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gold-200">
+                      {isClient && (
+                        <div
+                          className="flex items-center gap-2 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-gold-200"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             type="button"
-                            onClick={() => handleApproveTask(task)}
-                            disabled={taskActionLoading === task.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                            onClick={() => setClientViewTask(task)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold-100 hover:bg-gold-200 text-gold-900 border border-gold-300 text-xs font-bold rounded-lg transition-colors cursor-pointer"
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            {taskActionLoading === task.id ? 'Approving...' : 'Approve'}
+                            Review Details
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => setRequestChangesTask(task)}
-                            disabled={taskActionLoading === task.id}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
-                          >
-                            <XCircle className="h-3.5 w-3.5" />
-                            Request Changes
-                          </button>
+                          {isPending && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleApproveTask(task)}
+                                disabled={
+                                  taskActionLoading === task.id ||
+                                  task.progress < 100 ||
+                                  !task.submittedAt ||
+                                  !task.submissionDescription?.trim() ||
+                                  !task.proofDetails?.trim() ||
+                                  task.status !== 'REVIEW' ||
+                                  task.clientApprovalStatus !== 'PENDING'
+                                }
+                                title={
+                                  task.progress < 100
+                                    ? 'Task must reach 100% and be submitted before approval'
+                                    : undefined
+                                }
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {taskActionLoading === task.id
+                                  ? 'Approving...'
+                                  : task.progress < 100
+                                  ? `Incomplete (${task.progress}%)`
+                                  : 'Approve'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setRequestChangesTask(task)}
+                                disabled={taskActionLoading === task.id}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                Request Changes
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -807,6 +858,21 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
           onSubmitted={() => {
             setRequestChangesTask(null);
             loadData();
+          }}
+        />
+      )}
+
+      {clientViewTask && (
+        <ClientTaskDetailModal
+          task={clientViewTask}
+          onClose={() => setClientViewTask(null)}
+          onApproved={() => {
+            setClientViewTask(null);
+            loadData();
+          }}
+          onRequestChanges={(t) => {
+            setClientViewTask(null);
+            setRequestChangesTask(t);
           }}
         />
       )}

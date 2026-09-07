@@ -104,6 +104,18 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
       setError('Project name is required.');
       return;
     }
+    if (!description.trim()) {
+      setError('Project description is required.');
+      return;
+    }
+    if (!startDate) {
+      setError('Start date is required.');
+      return;
+    }
+    if (!endDate) {
+      setError('End date is required.');
+      return;
+    }
     if (!leadOwnerId) {
       setError('Please assign a lead owner.');
       return;
@@ -119,9 +131,9 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
     try {
       const res = await api.createClientProjectRequest({
         name: name.trim(),
-        description: description.trim() || undefined,
-        startDate: startDate ? new Date(startDate).toISOString() : undefined,
-        dueDate: endDate ? new Date(endDate).toISOString() : undefined,
+        description: description.trim(),
+        startDate: new Date(startDate).toISOString(),
+        dueDate: new Date(endDate).toISOString(),
         estimatedBudget: estimatedBudget ? Number(estimatedBudget) : undefined,
         leadOwnerId,
         preferredMeetingTime: new Date(preferredMeetingTime).toISOString(),
@@ -227,7 +239,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
             <div className="space-y-3.5">
               <div>
                 <label className="block text-xs font-semibold text-[#44403C] mb-1.5">
-                  Project Name
+                  Project Name <span className="text-[#8E7028] font-bold">*</span>
                 </label>
                 <div className="relative">
                   <div className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[#8C867A]">
@@ -246,10 +258,11 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
 
               <div>
                 <label className="block text-xs font-semibold text-[#44403C] mb-1.5">
-                  Project Description
+                  Project Description <span className="text-[#8E7028] font-bold">*</span>
                 </label>
                 <textarea
                   rows={3}
+                  required
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Briefly outline project scope and creative direction..."
@@ -272,10 +285,11 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-[#44403C] mb-1.5">
-                    Start Date
+                    Start Date <span className="text-[#8E7028] font-bold">*</span>
                   </label>
                   <input
                     type="date"
+                    required
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs sm:text-sm bg-[#F8F8FA] border border-[#E5E2DA] rounded-xl text-[#1F1D1A] font-medium focus:outline-none focus:ring-1.5 focus:ring-[#8E7028] focus:bg-white transition-all cursor-pointer"
@@ -283,10 +297,11 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-[#44403C] mb-1.5">
-                    End Date
+                    End Date <span className="text-[#8E7028] font-bold">*</span>
                   </label>
                   <input
                     type="date"
+                    required
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full px-3 py-2.5 text-xs sm:text-sm bg-[#F8F8FA] border border-[#E5E2DA] rounded-xl text-[#1F1D1A] font-medium focus:outline-none focus:ring-1.5 focus:ring-[#8E7028] focus:bg-white transition-all cursor-pointer"
@@ -333,7 +348,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-[#44403C] mb-1.5">
-                  Assign Lead Owner
+                  Assign Lead Owner <span className="text-[#8E7028] font-bold">*</span>
                 </label>
                 <div className="relative">
                   <select

@@ -1,8 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Client } from '../types';
-import { User, Mail, Phone, Building2, Camera, Key, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Building2, Camera, Key, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export const ClientSettingsPage: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -23,6 +23,9 @@ export const ClientSettingsPage: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
@@ -273,15 +276,25 @@ export const ClientSettingsPage: React.FC = () => {
             <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
               Current Password <span className="text-rose-500">*</span>
             </label>
-            <input
-              type="password"
-              required
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
-            />
+            <div className="relative">
+              <input
+                type={showCurrentPassword ? 'text' : 'password'}
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full pl-3.5 pr-10 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                title={showCurrentPassword ? 'Hide password' : 'Show password'}
+              >
+                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -289,29 +302,49 @@ export const ClientSettingsPage: React.FC = () => {
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
                 New Password <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="password"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
-                autoComplete="new-password"
-                className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Minimum 6 characters"
+                  autoComplete="new-password"
+                  className="w-full pl-3.5 pr-10 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                  title={showNewPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
                 Confirm New Password <span className="text-rose-500">*</span>
               </label>
-              <input
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat new password"
-                autoComplete="new-password"
-                className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat new password"
+                  autoComplete="new-password"
+                  className="w-full pl-3.5 pr-10 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                  title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
           </div>
 

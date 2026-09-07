@@ -264,7 +264,11 @@ export const KanbanPage: React.FC = () => {
                         >
                           {/* Priority & Actions */}
                           <div className="flex items-center justify-between gap-1">
-                            <PriorityBadge priority={task.priority} size="sm" />
+                            {user?.role !== 'CLIENT' ? (
+                              <PriorityBadge priority={task.priority} size="sm" />
+                            ) : (
+                              <div />
+                            )}
                             {canManage && (
                               <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
                                 <button
@@ -312,7 +316,7 @@ export const KanbanPage: React.FC = () => {
                               <span className="text-black/60 font-medium">Progress</span>
                               <span className="font-bold text-black">{task.progress}%</span>
                             </div>
-                            <ProgressBar progress={task.progress} size="sm" />
+                            <ProgressBar progress={task.progress} size="sm" showLabel={false} />
                           </div>
 
                           {/* Footer: Assignee, Due Date, Move arrows */}

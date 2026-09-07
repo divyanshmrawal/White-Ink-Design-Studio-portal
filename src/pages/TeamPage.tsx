@@ -266,15 +266,15 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
                   {/* Stats Grid */}
                   <div className="grid grid-cols-3 gap-2 text-center mb-4">
                     <div className="p-2 bg-gray-50/80 rounded-lg border border-gray-100">
-                      <div className="text-base font-bold text-gray-900">{m.activeProjectsCount}</div>
+                      <div className="text-base font-bold text-gray-900">{m.assignedProjectCount}</div>
                       <div className="text-[10px] text-gray-500 font-medium">Projects</div>
                     </div>
                     <div className="p-2 bg-gray-50/80 rounded-lg border border-gray-100">
-                      <div className="text-base font-bold text-gray-900">{m.assignedTasksCount}</div>
+                      <div className="text-base font-bold text-gray-900">{m.totalTasksCount}</div>
                       <div className="text-[10px] text-gray-500 font-medium">Tasks</div>
                     </div>
                     <div className="p-2 bg-blue-50/80 rounded-lg border border-blue-100">
-                      <div className="text-base font-bold text-blue-700">{m.inProgressTasksCount}</div>
+                      <div className="text-base font-bold text-blue-700">{m.activeTasksCount}</div>
                       <div className="text-[10px] text-blue-600 font-medium">In Progress</div>
                     </div>
                   </div>

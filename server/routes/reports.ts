@@ -5,8 +5,16 @@ import { requireAuth, AuthenticatedRequest } from '../auth.ts';
 
 export const reportsRouter = Router();
 
+// Reports are forbidden for CLIENT role
+reportsRouter.use(requireAuth, (req: AuthenticatedRequest, res: Response, next) => {
+  if (req.user?.role === 'CLIENT') {
+    return res.status(403).json({ message: 'Forbidden: Reports access restricted.' });
+  }
+  next();
+});
+
 // GET /api/reports/overview
-reportsRouter.get('/overview', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+reportsRouter.get('/overview', (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
   db.recalculateAllProjectProgress();
   const overview = db.getReportsOverview({ id: currentUser.id, role: currentUser.role });

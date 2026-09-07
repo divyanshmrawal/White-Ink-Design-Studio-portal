@@ -308,14 +308,16 @@ export interface AttendanceStats {
 
 export interface TeamMemberWorkload {
   user: User;
-  totalAssignedTasks: number;
-  activeTasks: number;
-  completedTasks: number;
-  overdueTasks: number;
-  projectCount: number;
-  assignedProjects: { id: string; name: string }[];
-  todayAttendance?: Attendance | null;
-  workloadScore: number; // 0 - 100
+  totalTasksCount: number;
+  activeTasksCount: number;
+  completedTasksCount: number;
+  assignedProjectCount: number;
+  inProgressTasksCount?: number;
+  activeProjectsCount?: number;
+  workloadLevel: 'LOW' | 'OPTIMAL' | 'HIGH' | 'OVERLOADED';
+  todayAttendanceStatus: string;
+  isCurrentlyWorking: boolean;
+  isOnBreak: boolean;
 }
 
 export interface ReportsOverview {

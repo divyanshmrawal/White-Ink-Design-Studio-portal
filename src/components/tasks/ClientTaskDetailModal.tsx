@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Send,
   MessageSquare,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ClientTaskDetailModalProps {
@@ -88,6 +89,14 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
   const isAlreadyApproved = task.clientApprovalStatus === 'APPROVED';
   const isRevisionRequested = task.status === 'REVISION_REQUESTED';
   const isSubmitted = Boolean(task.submittedAt);
+  const isComplete = task.progress === 100;
+  const hasSubmissionDetails = Boolean(task.submissionDescription?.trim()) && Boolean(task.proofDetails?.trim());
+  const canApprove =
+    isComplete &&
+    isSubmitted &&
+    hasSubmissionDetails &&
+    task.status === 'REVIEW' &&
+    task.clientApprovalStatus === 'PENDING';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -165,22 +174,39 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
             </div>
           )}
 
+          {/* Warning note if not 100% */}
+          {task.progress < 100 && (
+            <div className="mx-5 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-600" />
+              <span>Task must reach 100% and be submitted before approval (Current: {task.progress}%).</span>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="px-5 pb-5 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={handleApprove}
-              disabled={isApproving || isAlreadyApproved || isRevisionRequested || !isSubmitted || task.status !== 'REVIEW'}
+              disabled={isApproving || !canApprove}
+              title={!isComplete ? 'Task must reach 100% and be submitted before approval' : undefined}
               className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                 isAlreadyApproved
                   ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 cursor-default'
-                  : isRevisionRequested || !isSubmitted || task.status !== 'REVIEW'
+                  : !canApprove
                   ? 'bg-gold-100 text-black/40 border border-gold-200 cursor-default'
                   : 'bg-[#8B7355] hover:bg-[#7a6347] text-white border border-[#7a6347] shadow-sm btn-hover-lift'
               } disabled:opacity-60`}
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              {isAlreadyApproved ? 'Approved' : !isSubmitted ? 'Not Submitted' : isApproving ? 'Approving...' : 'Approve Task'}
+              {isAlreadyApproved
+                ? 'Approved'
+                : isApproving
+                ? 'Approving...'
+                : !isComplete
+                ? `Incomplete (${task.progress}%)`
+                : !isSubmitted
+                ? 'Not Submitted'
+                : 'Approve Task'}
             </button>
             <button
               type="button"

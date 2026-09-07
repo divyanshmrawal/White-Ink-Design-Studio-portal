@@ -175,6 +175,10 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   };
 
   const handleQuickTaskStatus = async (taskId: string, status: TaskStatus) => {
+    if (user?.role === 'TEAM_MEMBER' && (status === 'COMPLETED' || status === 'REVIEW')) {
+      alert('Team members cannot directly mark tasks as In Review or Completed. Please submit for client review at 100% progress.');
+      return;
+    }
     try {
       await api.updateTaskStatus(taskId, status);
       await loadProjectDetails();
@@ -289,7 +293,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={project.status} />
-              <PriorityBadge priority={project.priority} />
+              {!isClient && <PriorityBadge priority={project.priority} />}
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
               {project.name}
@@ -320,10 +324,12 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
               <span className="font-bold text-black">Deliverable Progress</span>
               <span className="font-extrabold text-black text-sm">{project.progress}%</span>
             </div>
-            <ProgressBar progress={project.progress} size="md" />
+            <ProgressBar progress={project.progress} size="md" showLabel={false} />
             <div className="flex justify-between text-[11px] text-black/70 font-semibold pt-1">
               <span>{project.completedTaskCount || 0} of {project.taskCount || 0} tasks done</span>
-              <span>{project.taskCount ? Math.round(((project.completedTaskCount || 0) / project.taskCount) * 100) : 0}%</span>
+              {!isClient && (
+                <span>{project.taskCount ? Math.round(((project.completedTaskCount || 0) / project.taskCount) * 100) : 0}%</span>
+              )}
             </div>
           </div>
         </div>
@@ -480,45 +486,77 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                   {/* Progress & Actions */}
                   <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
                     <div className="w-28 sm:w-32">
-                      <ProgressBar progress={task.progress} size="sm" />
+                      <ProgressBar progress={task.progress} size="sm" showLabel={false} />
                     </div>
 
-                    {!isClient && (
-                      <select
-                        value={task.status}
-                        onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black cursor-pointer focus:ring-1 focus:ring-gold-500"
-                      >
-                        <option value="TODO">To Do</option>
-                        <option value="IN_PROGRESS">In Progress</option>
-                        <option value="REVIEW">Review</option>
-                        <option value="COMPLETED">Completed</option>
-                        <option value="REVISION_REQUESTED">Revision Requested</option>
-                      </select>
-                    )}
+                    {isClient ? (
+                      <StatusBadge status={task.status} size="sm" />
+                    ) : user?.role === 'TEAM_MEMBER' ? (
+                      <div className="flex items-center gap-2">
+                        {task.progress === 100 && task.status !== 'REVIEW' && task.status !== 'COMPLETED' && task.assignedToId === user?.id && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSubmitTask(task); }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg cursor-pointer shadow-xs btn-hover-lift"
+                          >
+                            <Send className="h-3 w-3" />
+                            Submit for Client Approval
+                          </button>
+                        )}
 
-                    {!isClient && task.progress === 100 && task.status !== 'REVIEW' && task.status !== 'COMPLETED' && task.assignedToId === user?.id && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setSubmitTask(task); }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg cursor-pointer"
-                      >
-                        <Send className="h-3 w-3" />
-                        Submit for Client Approval
-                      </button>
-                    )}
+                        {task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING' && (
+                          <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                            Awaiting Client Approval
+                          </span>
+                        )}
 
-                    {task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING' && (
-                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
-                        Awaiting Client Approval
-                      </span>
-                    )}
+                        {task.clientApprovalStatus === 'APPROVED' && (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                            Client Approved
+                          </span>
+                        )}
 
-                    {task.clientApprovalStatus === 'APPROVED' && (
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
-                        Client Approved
-                      </span>
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={task.status === 'REVIEW' || task.status === 'COMPLETED'}
+                          className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black cursor-pointer focus:ring-1 focus:ring-gold-500 disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                          <option value="TODO">To Do</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          {task.status === 'REVIEW' && <option value="REVIEW" disabled>Review</option>}
+                          {task.status === 'COMPLETED' && <option value="COMPLETED" disabled>Completed</option>}
+                          {task.status === 'REVISION_REQUESTED' && <option value="REVISION_REQUESTED">Revision Requested</option>}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        {task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING' && (
+                          <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                            Awaiting Client Approval
+                          </span>
+                        )}
+
+                        {task.clientApprovalStatus === 'APPROVED' && (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                            Client Approved
+                          </span>
+                        )}
+
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black cursor-pointer focus:ring-1 focus:ring-gold-500"
+                        >
+                          <option value="TODO">To Do</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="REVIEW">Review</option>
+                          <option value="COMPLETED">Completed</option>
+                          <option value="REVISION_REQUESTED">Revision Requested</option>
+                        </select>
+                      </div>
                     )}
 
                     {canManage && (

@@ -326,8 +326,16 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
     return res.status(400).json({ message: 'Task must be submitted for review before it can be approved.' });
   }
 
-  if (task.progress !== 100 || !task.submittedAt || task.clientApprovalStatus !== 'PENDING') {
-    return res.status(400).json({ message: 'Only submitted tasks at 100% completion can be approved.' });
+  if (
+    task.progress !== 100 ||
+    !task.submittedAt ||
+    !task.submissionDescription?.trim() ||
+    !task.proofDetails?.trim() ||
+    task.clientApprovalStatus !== 'PENDING'
+  ) {
+    return res.status(400).json({
+      message: 'Only submitted tasks at 100% completion with submission description and proof details can be approved.',
+    });
   }
 
   const updated = db.updateTask(id, {

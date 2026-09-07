@@ -502,7 +502,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {teamWorkload.map((m) => {
-                    const workloadScore = m.activeTasksCount * 2 + m.inProgressTasksCount * 3;
+                    const workloadScore = m.activeTasksCount * 2;
                     const isHeavy = workloadScore > 10;
 
                     return (
@@ -532,13 +532,13 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
                           </span>
                         </td>
                         <td className="py-3 px-3 text-center font-semibold text-gray-800">
-                          {m.activeProjectsCount}
+                          {m.assignedProjectCount}
                         </td>
                         <td className="py-3 px-3 text-center font-semibold text-gray-800">
-                          {m.assignedTasksCount}
+                          {m.totalTasksCount}
                         </td>
                         <td className="py-3 px-3 text-center font-semibold text-blue-600">
-                          {m.inProgressTasksCount}
+                          {m.activeTasksCount}
                         </td>
                         <td className="py-3 px-3 text-center">
                           <span

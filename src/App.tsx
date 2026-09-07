@@ -115,7 +115,16 @@ function MainApp() {
           ) : currentPath === '/approvals' ? (
             <ApprovalsPage onNavigate={navigate} />
           ) : currentPath === '/reports' ? (
-            <ReportsPage onNavigate={navigate} />
+            user.role === 'CLIENT' ? (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            ) : (
+              <ReportsPage onNavigate={navigate} />
+            )
           ) : currentPath === '/team' ? (
             <TeamPage onNavigate={navigate} />
           ) : currentPath === '/clients' ? (

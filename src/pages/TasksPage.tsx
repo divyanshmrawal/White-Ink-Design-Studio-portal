@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { EmptyState } from '../components/common/EmptyState';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { TaskModal } from '../components/tasks/TaskModal';
+import { SubmitTaskModal } from '../components/tasks/SubmitTaskModal';
 import {
   CheckSquare,
   Search,
@@ -18,6 +19,7 @@ import {
   Edit2,
   Trash2,
   Filter,
+  Send,
 } from 'lucide-react';
 
 interface TasksPageProps {
@@ -45,6 +47,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [submitTask, setSubmitTask] = useState<Task | null>(null);
 
   const canManage = user?.role !== 'CLIENT';
 
@@ -166,17 +169,19 @@ export const TasksPage: React.FC<TasksPageProps> = ({
             <option value="COMPLETED">Completed</option>
           </select>
 
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs font-bold bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="URGENT">Urgent</option>
-            <option value="HIGH">High</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="LOW">Low</option>
-          </select>
+          {user?.role !== 'CLIENT' && (
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs font-bold bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer"
+            >
+              <option value="ALL">All Priorities</option>
+              <option value="URGENT">Urgent</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+            </select>
+          )}
 
           <select
             value={assigneeFilter}
@@ -219,7 +224,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
               {/* Task Details */}
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <PriorityBadge priority={task.priority} size="sm" />
+                  {user?.role !== 'CLIENT' && <PriorityBadge priority={task.priority} size="sm" />}
                   <span className="text-xs font-bold text-black">
                     {task.project?.name || 'Project'}
                   </span>
@@ -250,10 +255,50 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                     <span className="text-black/60 font-medium">Progress</span>
                     <span className="font-extrabold text-black">{task.progress}%</span>
                   </div>
-                  <ProgressBar progress={task.progress} size="sm" />
+                  <ProgressBar progress={task.progress} size="sm" showLabel={false} />
                 </div>
 
-                {canManage ? (
+                {user?.role === 'CLIENT' ? (
+                  <StatusBadge status={task.status} size="sm" />
+                ) : user?.role === 'TEAM_MEMBER' ? (
+                  <div className="flex items-center gap-2">
+                    {task.progress === 100 && task.status !== 'REVIEW' && task.status !== 'COMPLETED' && task.assignedToId === user?.id && (
+                      <button
+                        type="button"
+                        onClick={() => setSubmitTask(task)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold text-black bg-gold-500 hover:bg-gold-600 border border-gold-600 rounded-lg cursor-pointer shadow-xs btn-hover-lift"
+                      >
+                        <Send className="h-3 w-3" />
+                        Submit for Client Approval
+                      </button>
+                    )}
+
+                    {task.status === 'REVIEW' && task.clientApprovalStatus === 'PENDING' && (
+                      <span className="text-[11px] font-bold text-amber-800 bg-amber-100 border border-amber-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                        Awaiting Client Approval
+                      </span>
+                    )}
+
+                    {task.clientApprovalStatus === 'APPROVED' && (
+                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                        Client Approved
+                      </span>
+                    )}
+
+                    <select
+                      value={task.status}
+                      onChange={(e) => handleQuickStatusChange(task.id, e.target.value as TaskStatus)}
+                      disabled={task.status === 'REVIEW' || task.status === 'COMPLETED'}
+                      className="text-xs font-bold py-1.5 px-2.5 rounded-lg border border-gold-300 bg-white text-black focus:outline-none focus:ring-1 focus:ring-gold-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <option value="TODO">To Do</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      {task.status === 'REVIEW' && <option value="REVIEW" disabled>In Review</option>}
+                      {task.status === 'COMPLETED' && <option value="COMPLETED" disabled>Completed</option>}
+                      {task.status === 'REVISION_REQUESTED' && <option value="REVISION_REQUESTED">Revision Requested</option>}
+                    </select>
+                  </div>
+                ) : (
                   <select
                     value={task.status}
                     onChange={(e) => handleQuickStatusChange(task.id, e.target.value as TaskStatus)}
@@ -263,9 +308,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="REVIEW">In Review</option>
                     <option value="COMPLETED">Completed</option>
+                    <option value="REVISION_REQUESTED">Revision Requested</option>
                   </select>
-                ) : (
-                  <StatusBadge status={task.status} size="sm" />
                 )}
 
                 {canManage && (
@@ -306,6 +350,18 @@ export const TasksPage: React.FC<TasksPageProps> = ({
         projects={projects}
         users={users}
       />
+
+      {/* Submit Task for Client Approval Modal */}
+      {submitTask && (
+        <SubmitTaskModal
+          task={submitTask}
+          onClose={() => setSubmitTask(null)}
+          onSubmitted={async () => {
+            setSubmitTask(null);
+            await loadData();
+          }}
+        />
+      )}
 
       {/* Delete Task Confirmation */}
       <ConfirmDialog

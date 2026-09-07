@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Reports & Analytics',
       path: '/reports',
       icon: BarChart3,
-      show: true,
+      show: role !== 'CLIENT',
       category: 'GENERAL',
     },
     {

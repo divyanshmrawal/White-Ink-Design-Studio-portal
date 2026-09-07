@@ -130,32 +130,34 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Role Permissions Matrix */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-6 space-y-4">
-        <h3 className="text-sm font-bold text-[#111827] flex items-center gap-2">
-          <Shield className="h-4 w-4 text-indigo-600" />
-          Role Permissions Matrix
-        </h3>
+      {user?.role !== 'CLIENT' && (
+        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-6 space-y-4">
+          <h3 className="text-sm font-bold text-[#111827] flex items-center gap-2">
+            <Shield className="h-4 w-4 text-indigo-600" />
+            Role Permissions Matrix
+          </h3>
 
-        <div className="divide-y divide-[#E5E7EB]">
-          {permissionsList.map((perm) => (
-            <div
-              key={perm.name}
-              className="py-3 flex items-center justify-between text-xs text-[#374151]"
-            >
-              <span>{perm.name}</span>
-              {perm.allowed ? (
-                <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                  Granted
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 rounded-md bg-gray-100 text-[#9CA3AF] font-medium border border-gray-200">
-                  Restricted
-                </span>
-              )}
-            </div>
-          ))}
+          <div className="divide-y divide-[#E5E7EB]">
+            {permissionsList.map((perm) => (
+              <div
+                key={perm.name}
+                className="py-3 flex items-center justify-between text-xs text-[#374151]"
+              >
+                <span>{perm.name}</span>
+                {perm.allowed ? (
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                    Granted
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-gray-100 text-[#9CA3AF] font-medium border border-gray-200">
+                    Restricted
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

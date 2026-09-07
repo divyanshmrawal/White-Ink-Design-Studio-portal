@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Task, Project, User, TaskStatus, TaskPriority, RevisionRequest } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { AlertCircle, FileText, Calendar } from 'lucide-react';
 
@@ -26,6 +27,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   defaultStatus,
 }) => {
   const isEditing = Boolean(task);
+  const { user } = useAuth();
+  const isTeamMember = user?.role === 'TEAM_MEMBER';
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -72,6 +75,11 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       return;
     }
 
+    if (isTeamMember && (status === 'COMPLETED' || (status === 'REVIEW' && task?.status !== 'REVIEW'))) {
+      setError('Team members cannot directly mark tasks as In Review or Completed. Please submit for client review at 100% progress.');
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
 
@@ -111,6 +119,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({
 
   // Status & progress auto syncing
   const handleStatusChange = (newStatus: TaskStatus) => {
+    if (isTeamMember && (newStatus === 'COMPLETED' || (newStatus === 'REVIEW' && task?.status !== 'REVIEW'))) {
+      return;
+    }
     setStatus(newStatus);
     if (newStatus === 'COMPLETED') setProgress(100);
     else if (newStatus === 'REVIEW' && progress < 75) setProgress(75);
@@ -262,6 +273,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               <option value="IN_PROGRESS">In Progress</option>
               <option value="REVIEW">In Review</option>
               <option value="COMPLETED">Completed</option>
+              {!isTeamMember ? (
+                <>
+                  <option value="REVIEW">In Review</option>
+                  <option value="COMPLETED">Completed</option>
+                </>
+              ) : (
+                <>
+                  {task?.status === 'REVIEW' && <option value="REVIEW" disabled>In Review</option>}
+                  {task?.status === 'COMPLETED' && <option value="COMPLETED" disabled>Completed</option>}
+                </>
+              )}
               <option value="REVISION_REQUESTED">Revision Requested</option>
             </select>
           </div>

@@ -217,8 +217,8 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT']), (r
     const currentUser = req.user!;
     const { name, description, startDate, dueDate, estimatedBudget, leadOwnerId, preferredMeetingTime } = req.body;
 
-    if (!name || !leadOwnerId || !preferredMeetingTime) {
-      return res.status(400).json({ message: 'Project name, lead owner, and preferred meeting time are required.' });
+    if (!name?.trim() || !description?.trim() || !startDate || !dueDate || !leadOwnerId || !preferredMeetingTime) {
+      return res.status(400).json({ message: 'Project name, description, start date, end date, lead owner, and preferred meeting time are required.' });
     }
 
     // Resolve or auto-create client record tied directly to this client account
