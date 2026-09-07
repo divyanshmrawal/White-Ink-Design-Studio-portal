@@ -88,7 +88,7 @@ export const ChatPage: React.FC = () => {
 
       // If mentions current user, trigger local notification
       if (textToSend.includes('@' + user?.name) || textToSend.includes('@all')) {
-        triggerLocalNotification('New PlanForge Mention', {
+        triggerLocalNotification('New Workspace Mention', {
           body: `${user?.name || 'Someone'} mentioned you in #${currentChannel}`,
         });
       }

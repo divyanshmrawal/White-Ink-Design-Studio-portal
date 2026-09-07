@@ -9,7 +9,6 @@ import {
   Users,
   UserCircle,
   X,
-  Shield,
   Clock,
   Flag,
   FileCheck,
@@ -21,6 +20,7 @@ import {
   Activity,
   Settings,
 } from 'lucide-react';
+import { BrandLogo } from '../common/BrandLogo';
 
 interface SidebarProps {
   currentPath: string;
@@ -268,12 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation list */}
         <div className="flex-1 py-5 px-3 overflow-y-auto">
           <div className="flex items-center justify-between px-3 mb-4 lg:hidden">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center text-gold-400 font-bold text-sm border border-gold-500">
-                P
-              </div>
-              <span className="font-extrabold text-lg text-black">PlanForge</span>
-            </div>
+            <BrandLogo className="h-10 w-auto max-w-[9rem] object-contain" />
             <button
               type="button"
               onClick={onClose}

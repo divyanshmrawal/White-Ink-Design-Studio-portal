@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, Menu, Shield, ChevronDown, RotateCcw } from 'lucide-react';
+import { LogOut, Menu, ChevronDown, RotateCcw } from 'lucide-react';
 import { api } from '../../services/api';
 import { NotificationDropdown } from './NotificationDropdown';
+import { BrandLogo } from '../common/BrandLogo';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -65,19 +66,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onNavigate }) =
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-black flex items-center justify-center text-gold-400 font-bold text-sm shadow-xs border border-gold-600">
-            <Shield className="h-4 w-4" />
-          </div>
-          <div>
-            <span className="font-extrabold text-black text-lg tracking-tight block leading-none drop-shadow-xs">
-              PlanForge
-            </span>
-            <span className="text-[10px] uppercase font-bold tracking-wider text-black/75">
-              Project Management
-            </span>
-          </div>
-        </div>
+        <BrandLogo className="h-12 w-auto max-w-[10rem] object-contain" />
       </div>
 
       {/* Right section */}

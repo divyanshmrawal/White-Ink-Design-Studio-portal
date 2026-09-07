@@ -188,7 +188,7 @@ export const AdminSettingsPage: React.FC = () => {
 
     if (fcmRes.success) {
       setPushFeedback('Firebase Cloud Messaging connected and device token registered!');
-      triggerLocalNotification('PlanForge FCM Push Connected', {
+      triggerLocalNotification('FCM Push Connected', {
         body: 'Real-time background & desktop push notifications are active.',
       });
       return;
@@ -214,12 +214,12 @@ export const AdminSettingsPage: React.FC = () => {
     setPushFeedback('');
     try {
       const res = await api.testFcmPush({
-        title: 'PlanForge FCM Push Alert',
+        title: 'FCM Push Alert',
         message: 'Firebase Cloud Messaging push notification received successfully!',
       });
       setPushFeedback(res.message || 'Push alert sent to your device via FCM!');
     } catch (err: any) {
-      triggerLocalNotification('PlanForge Desktop Test', {
+      triggerLocalNotification('Desktop Notification Test', {
         body: 'Desktop alert received. (FCM background push requires Firebase Admin credentials).',
       });
       setPushFeedback(err.message || 'Desktop notification triggered.');

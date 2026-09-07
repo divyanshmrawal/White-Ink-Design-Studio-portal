@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Lock, Mail, ArrowRight } from 'lucide-react';
+import { BrandLogo } from '../components/common/BrandLogo';
 
 interface LoginPageProps {
   onNavigateToRegister: () => void;
@@ -51,15 +52,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
   return (
     <div className="min-h-screen bg-[#F8F4E5] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-12 w-12 rounded-xl bg-black flex items-center justify-center text-gold-400 shadow-sm mb-4 border border-gold-500">
-          <Shield className="h-6 w-6" />
-        </div>
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-          PlanForge PMS
-        </h2>
-        <p className="mt-1 text-sm text-black/70 font-medium">
-          End-to-End Enterprise Project Management System
-        </p>
+        <BrandLogo className="mx-auto h-auto w-48 max-w-full object-contain" />
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0">

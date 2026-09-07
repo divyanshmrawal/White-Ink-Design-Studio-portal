@@ -65,7 +65,7 @@ function MainApp() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gold-50 flex items-center justify-center">
-        <LoadingSpinner message="Authenticating PlanForge workspace..." size="lg" />
+        <LoadingSpinner message="Authenticating workspace..." size="lg" />
       </div>
     );
   }

@@ -130,7 +130,7 @@ export async function initAndRegisterFcmToken(): Promise<FcmInitResult> {
         isListeningForeground = true;
         onMessage(messaging, (payload) => {
           console.log('[FCM] Foreground notification received:', payload);
-          const title = payload.notification?.title || payload.data?.title || 'PlanForge Alert';
+          const title = payload.notification?.title || payload.data?.title || 'Workspace Alert';
           const body = payload.notification?.body || payload.data?.body || payload.data?.message || '';
 
           // Display desktop notification when in foreground if permitted

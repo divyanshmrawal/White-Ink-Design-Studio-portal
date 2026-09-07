@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Shield, User, Mail, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
+import { BrandLogo } from '../components/common/BrandLogo';
 
 interface RegisterPageProps {
   onNavigateToLogin: () => void;
@@ -52,9 +53,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
   return (
     <div className="min-h-screen bg-[#F8F4E5] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="mx-auto h-12 w-12 rounded-xl bg-black flex items-center justify-center text-gold-400 shadow-sm mb-4 border border-gold-500">
-          <Shield className="h-6 w-6" />
-        </div>
+        <BrandLogo className="mx-auto h-auto w-48 max-w-full object-contain mb-4" />
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
           Create Account
         </h2>

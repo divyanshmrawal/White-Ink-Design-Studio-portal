@@ -30,7 +30,7 @@ export async function requestPushPermission(): Promise<boolean> {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       // Register subscription endpoint on backend for simulated / web push notifications
-      const dummyEndpoint = `https://fcm.googleapis.com/fcm/send/planforge-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const dummyEndpoint = `https://fcm.googleapis.com/fcm/send/workspace-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       await api.subscribePush({
         endpoint: dummyEndpoint,
         keys: {
@@ -39,7 +39,7 @@ export async function requestPushPermission(): Promise<boolean> {
         },
       }).catch(() => {});
 
-      new Notification('PlanForge Notifications Enabled', {
+      new Notification('Notifications Enabled', {
         body: 'You will now receive desktop alerts for task assignments, leave reviews, and mentions.',
         icon: '/favicon.ico',
       });

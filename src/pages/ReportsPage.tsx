@@ -64,7 +64,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `planforge-report-${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `white-ink-report-${new Date().toISOString().split('T')[0]}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -85,7 +85,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `planforge-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      a.download = `white-ink-report-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
