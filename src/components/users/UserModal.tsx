@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
-import { User, Role } from '../../types';
+import { User, Role, Client } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 
@@ -40,9 +40,19 @@ export const UserModal: React.FC<UserModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>(defaultRole);
+  const [clientId, setClientId] = useState('');
+  const [clients, setClients] = useState<Client[]>([]);
   const [profileImage, setProfileImage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      api.getClients()
+        .then((data) => setClients(data || []))
+        .catch((err) => console.error('Failed to load clients in UserModal:', err));
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (user) {
@@ -50,12 +60,14 @@ export const UserModal: React.FC<UserModalProps> = ({
       setEmail(user.email || '');
       setPassword('');
       setRole(user.role || defaultRole);
+      setClientId(user.clientId || '');
       setProfileImage(user.profileImage || '');
     } else {
       setName('');
       setEmail('');
       setPassword('');
       setRole(defaultRole);
+      setClientId('');
       setProfileImage('');
     }
     setError(null);
@@ -75,6 +87,10 @@ export const UserModal: React.FC<UserModalProps> = ({
       setError('Password must be at least 6 characters long.');
       return;
     }
+    if (role === 'CLIENT_ADMIN' && !clientId) {
+      setError('Please select a client company.');
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -85,6 +101,7 @@ export const UserModal: React.FC<UserModalProps> = ({
           name: name.trim(),
           email: email.trim().toLowerCase(),
           role,
+          clientId: role === 'CLIENT_ADMIN' ? clientId : undefined,
           password: password || undefined,
           profileImage: profileImage.trim() || undefined,
         });
@@ -94,6 +111,7 @@ export const UserModal: React.FC<UserModalProps> = ({
           email: email.trim().toLowerCase(),
           password,
           role,
+          clientId: role === 'CLIENT_ADMIN' ? clientId : undefined,
           profileImage: profileImage.trim() || undefined,
         });
       }
@@ -202,6 +220,27 @@ export const UserModal: React.FC<UserModalProps> = ({
             ))}
           </select>
         </div>
+
+        {role === 'CLIENT_ADMIN' && (
+          <div>
+            <label className="form-label block mb-1 text-heading">
+              Client Company <span className="text-rose-500">*</span>
+            </label>
+            <select
+              required
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+            >
+              <option value="">Select a client company...</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.company ? `${c.company} (${c.name})` : c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="form-label block mb-1 text-heading">
