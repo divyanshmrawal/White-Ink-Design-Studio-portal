@@ -116,6 +116,10 @@ model User {
   chatMessages      ChatMessage[]
   scheduleOverrides EmployeeScheduleOverride[]
   pushSubscriptions PushSubscription[]
+  mustChangePassword Boolean         @default(false)
+  reviewedAccessRequests AccessRequest[] @relation("ReviewedAccessRequests")
+  receivedCredentials   IssuedCredential[] @relation("CredentialRecipient")
+  issuedCredentials     IssuedCredential[] @relation("CredentialIssuer")
 
   @@index([clientId])
   @@map("users")
@@ -482,6 +486,48 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AccessRequest {
+  id              String              @id @default(uuid())
+  name            String
+  email           String
+  requestedRole   Role
+  companyName     String?
+  status          AccessRequestStatus @default(PENDING)
+  rejectionReason String?
+  reviewedById    String?
+  createdAt       DateTime            @default(now())
+  reviewedAt      DateTime?
+
+  reviewedBy      User?               @relation("ReviewedAccessRequests", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([email])
+  @@map("access_requests")
+}
+
+model IssuedCredential {
+  id                String   @id @default(uuid())
+  userId            String
+  email             String
+  plaintextPassword String
+  createdById       String
+  createdAt         DateTime @default(now())
+
+  user              User     @relation("CredentialRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy         User     @relation("CredentialIssuer", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdById])
+  @@index([email])
+  @@map("issued_credentials")
 }
 
 

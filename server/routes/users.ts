@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { db, Role } from '../db.ts';
-import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser, hashPassword } from '../auth.ts';
+import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser, hashPassword, generateStrongPassword } from '../auth.ts';
 
 export const usersRouter = Router();
 
@@ -63,38 +63,24 @@ usersRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) 
   return res.json(sanitizeUser(user));
 });
 
-// POST /api/users
+// POST /api/users (Tier 2 direct member creation with auto-generated passwords)
 usersRouter.post(
   '/',
   requireAuth,
-  requireRoles(['SUPER_ADMIN', 'ADMIN', 'CLIENT_ADMIN']),
+  requireRoles(['ADMIN', 'CLIENT_ADMIN']),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const currentUser = req.user!;
-      const { name, email, password, role, profileImage } = req.body;
+      const { name, email, role, profileImage } = req.body;
 
-      if (!name || !email || !password || !role) {
-        return res.status(400).json({ message: 'Name, email, password, and role are required.' });
+      if (!name || !email || !role) {
+        return res.status(400).json({ message: 'Name, email, and role are required.' });
       }
 
-      // Enforce strict top-down role hierarchy:
+      // Enforce strict tier-2 creation hierarchy:
       let assignedClientId: string | null = null;
 
-      if (currentUser.role === 'SUPER_ADMIN') {
-        if (role !== 'ADMIN' && role !== 'CLIENT_ADMIN') {
-          return res.status(403).json({
-            message: 'Forbidden: Super Admins can only create Admin and Client Admin accounts.',
-          });
-        }
-        if (role === 'CLIENT_ADMIN') {
-          if (!req.body.clientId) {
-            return res.status(400).json({
-              message: 'clientId is required when creating a Client Admin account.',
-            });
-          }
-          assignedClientId = req.body.clientId;
-        }
-      } else if (currentUser.role === 'ADMIN') {
+      if (currentUser.role === 'ADMIN') {
         if (role !== 'TEAM_MEMBER') {
           return res.status(403).json({
             message: 'Forbidden: Admins can only create Team Member accounts.',
@@ -118,28 +104,43 @@ usersRouter.post(
         }
         assignedClientId = currentUser.clientId;
       } else {
-        return res.status(403).json({ message: 'Forbidden: You do not have permission to create users.' });
+        return res.status(403).json({ message: 'Forbidden: Direct user creation is restricted to Admins and Client Admins.' });
       }
 
-      const existing = db.getUserByEmail(email.trim());
+      const cleanEmail = email.trim().toLowerCase();
+      const existing = db.getUserByEmail(cleanEmail);
       if (existing) {
         return res.status(409).json({ message: 'A user with this email address already exists.' });
       }
 
-      const passwordHash = await hashPassword(password);
+      // Auto-generate strong password server-side
+      const plaintextPassword = generateStrongPassword(12);
+      const passwordHash = await hashPassword(plaintextPassword);
       const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
 
       const newUser = db.createUser({
         id: userId,
         name: name.trim(),
-        email: email.trim().toLowerCase(),
+        email: cleanEmail,
         passwordHash,
         role: role as Role,
         clientId: assignedClientId,
-        profileImage: profileImage || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+        profileImage: profileImage || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
+        mustChangePassword: true,
       });
 
-      return res.status(201).json(sanitizeUser(newUser));
+      // Archive generated credentials in vault
+      db.createIssuedCredential({
+        userId: newUser.id,
+        email: newUser.email,
+        plaintextPassword,
+        createdById: currentUser.id,
+      });
+
+      return res.status(201).json({
+        ...sanitizeUser(newUser),
+        generatedPassword: plaintextPassword,
+      });
     } catch (error: any) {
       console.error('Error creating user:', error);
       return res.status(500).json({ message: 'Failed to create user.' });

@@ -12,6 +12,8 @@ import { KanbanPage } from './pages/KanbanPage';
 import { TasksPage } from './pages/TasksPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { UsersPage } from './pages/UsersPage';
+import { AccessRequestsPage } from './pages/AccessRequestsPage';
+import { CredentialsPage } from './pages/CredentialsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AttendancePage } from './pages/AttendancePage';
 import { MilestonesPage } from './pages/MilestonesPage';
@@ -25,6 +27,7 @@ import { ActivitiesPage } from './pages/ActivitiesPage';
 import { ChatPage } from './pages/ChatPage';
 import { AdminSettingsPage } from './pages/AdminSettingsPage';
 import { ClientSettingsPage } from './pages/ClientSettingsPage';
+import { ForcePasswordChangePage } from './pages/ForcePasswordChangePage';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ProjectModal } from './components/projects/ProjectModal';
 import { ClientProjectRequestModal } from './components/projects/ClientProjectRequestModal';
@@ -84,6 +87,11 @@ function MainApp() {
       return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
     }
     return <LoginPage onNavigateToRegister={() => setAuthView('register')} />;
+  }
+
+  // Force password change screen on first login for users provisioned with generated passwords
+  if (user.mustChangePassword) {
+    return <ForcePasswordChangePage />;
   }
 
   // Parse project detail route: /projects/:id
@@ -167,9 +175,31 @@ function MainApp() {
                 onOpenNewTask={() => setIsQuickTaskOpen(true)}
               />
             )
+          ) : currentPath === '/access-requests' ? (
+            user.role === 'SUPER_ADMIN' ? (
+              <AccessRequestsPage />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : currentPath === '/users' ? (
             user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CLIENT_ADMIN' ? (
-              <UsersPage />
+              <UsersPage onNavigate={navigate} />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
+          ) : currentPath === '/credentials' ? (
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CLIENT_ADMIN' ? (
+              <CredentialsPage />
             ) : (
               <DashboardPage
                 onNavigate={navigate}

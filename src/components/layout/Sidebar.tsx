@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Activity,
   Settings,
+  UserCheck,
+  KeyRound,
 } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 
@@ -160,11 +162,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
       category: 'MANAGEMENT',
     },
     {
+      name: 'Access Requests',
+      path: '/access-requests',
+      icon: UserCheck,
+      badge: 'Super Admin',
+      show: role === 'SUPER_ADMIN',
+      category: 'MANAGEMENT',
+    },
+    {
       name: 'User Accounts',
       path: '/users',
       icon: Users,
       badge: 'Admin',
       show: isSuperAdminOrAdmin,
+      category: 'MANAGEMENT',
+    },
+    {
+      name: 'Credentials Vault',
+      path: '/credentials',
+      icon: KeyRound,
+      badge: role === 'SUPER_ADMIN' ? 'Vault' : undefined,
+      show: role === 'SUPER_ADMIN' || role === 'ADMIN' || role === 'CLIENT_ADMIN',
       category: 'MANAGEMENT',
     },
     {

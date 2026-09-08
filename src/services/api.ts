@@ -16,6 +16,8 @@ import {
   AttendanceStats,
   AttendanceStatus,
   HandoverDocument,
+  AccessRequest,
+  IssuedCredential,
 } from '../types';
 
 const API_BASE = '/api';
@@ -63,11 +65,45 @@ export const api = {
 
   getMe: () => request<{ user: User }>('/auth/me'),
 
-  changePassword: (payload: { currentPassword: string; newPassword: string }) =>
+  changePassword: (payload: { currentPassword?: string; newPassword: string }) =>
     request<{ message: string }>('/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+
+  // Access Requests (Tier 1)
+  requestAccess: (payload: { name: string; email: string; requestedRole: Role; companyName?: string }) =>
+    request<{ message: string; request: AccessRequest }>('/access-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  getAccessRequests: (params?: { status?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'ALL') query.append('status', params.status);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return request<AccessRequest[]>(`/access-requests${qs}`);
+  },
+
+  approveAccessRequest: (id: string) =>
+    request<{
+      message: string;
+      user: User;
+      plaintextPassword: string;
+      accessRequest: AccessRequest;
+      credentialId: string;
+    }>(`/access-requests/${id}/approve`, {
+      method: 'POST',
+    }),
+
+  rejectAccessRequest: (id: string, reason?: string) =>
+    request<{ message: string; accessRequest: AccessRequest }>(`/access-requests/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  // Credentials Vault (Part C)
+  getIssuedCredentials: () => request<IssuedCredential[]>('/credentials'),
 
   // Users
   getUsers: (params?: { search?: string; role?: string }) => {
@@ -80,8 +116,8 @@ export const api = {
 
   getUserById: (id: string) => request<User>(`/users/${id}`),
 
-  createUser: (payload: { name: string; email: string; password: string; role: Role; profileImage?: string; clientId?: string | null }) =>
-    request<User>('/users', {
+  createUser: (payload: { name: string; email: string; role: Role; password?: string; profileImage?: string; clientId?: string | null }) =>
+    request<User & { generatedPassword?: string }>('/users', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),

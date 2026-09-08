@@ -35,6 +35,30 @@ export type NotificationType =
   | 'CHAT_MENTION'
   | 'GENERAL';
 
+export type AccessRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface AccessRequestRecord {
+  id: string;
+  name: string;
+  email: string;
+  requestedRole: Role;
+  companyName?: string | null;
+  status: AccessRequestStatus;
+  rejectionReason?: string | null;
+  reviewedById?: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface IssuedCredentialRecord {
+  id: string;
+  userId: string;
+  email: string;
+  plaintextPassword: string;
+  createdById: string;
+  createdAt: string;
+}
+
 export interface UserRecord {
   id: string;
   name: string;
@@ -44,6 +68,7 @@ export interface UserRecord {
   profileImage?: string | null;
   fcmToken?: string | null;
   clientId?: string | null;
+  mustChangePassword?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -331,6 +356,8 @@ export interface DatabaseSchema {
   settings: SystemSettingsRecord;
   scheduleOverrides: EmployeeScheduleOverrideRecord[];
   pushSubscriptions: PushSubscriptionRecord[];
+  accessRequests: AccessRequestRecord[];
+  issuedCredentials: IssuedCredentialRecord[];
 }
 
 export function getTodayDateString(d: Date = new Date()): string {
@@ -358,6 +385,8 @@ class DatabaseService {
     reviews: [],
     activities: [],
     chatMessages: [],
+    accessRequests: [],
+    issuedCredentials: [],
     settings: {
       id: 'system_config',
       officeStartTime: '09:30',
@@ -570,6 +599,8 @@ class DatabaseService {
           ...ps,
           createdAt: ps.createdAt.toISOString(),
         })) as PushSubscriptionRecord[],
+        accessRequests: [],
+        issuedCredentials: [],
       };
       this.recalculateAllProjectProgress();
       this.ensureClientAdmins();
@@ -655,6 +686,8 @@ class DatabaseService {
         updatedAt: o.updatedAt || now,
       })) as EmployeeScheduleOverrideRecord[],
       pushSubscriptions: [],
+      accessRequests: [],
+      issuedCredentials: [],
     };
     this.recalculateAllProjectProgress();
     this.ensureClientAdmins();
@@ -769,6 +802,7 @@ class DatabaseService {
             role: newUser.role,
             profileImage: newUser.profileImage,
             clientId: newUser.clientId,
+            mustChangePassword: newUser.mustChangePassword ?? false,
           },
         })
         .catch(() => {});
@@ -3064,6 +3098,132 @@ class DatabaseService {
       prisma.pushSubscription.deleteMany({ where: { endpoint } }).catch(() => {});
     }
     return true;
+  }
+
+  // --- ACCESS REQUESTS ---
+  public getAccessRequests(status?: string) {
+    if (status && status !== 'ALL') {
+      return this.data.accessRequests.filter((r) => r.status === status);
+    }
+    return this.data.accessRequests;
+  }
+
+  public getAccessRequestById(id: string) {
+    return this.data.accessRequests.find((r) => r.id === id);
+  }
+
+  public getAccessRequestByEmail(email: string) {
+    return this.data.accessRequests.find((r) => r.email.toLowerCase() === email.toLowerCase());
+  }
+
+  public createAccessRequest(req: Omit<AccessRequestRecord, 'id' | 'createdAt' | 'status'> & { id?: string; status?: AccessRequestStatus }) {
+    const id = req.id || `req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+    const newReq: AccessRequestRecord = {
+      id,
+      name: req.name,
+      email: req.email,
+      requestedRole: req.requestedRole,
+      companyName: req.companyName || null,
+      status: req.status || 'PENDING',
+      rejectionReason: req.rejectionReason || null,
+      reviewedById: req.reviewedById || null,
+      createdAt: now,
+      reviewedAt: req.reviewedAt || null,
+    };
+    this.data.accessRequests.push(newReq);
+
+    if (prisma && this.isPrismaActive) {
+      const p = prisma as any;
+      if (p.accessRequest) {
+        p.accessRequest
+          .create({
+            data: {
+              id: newReq.id,
+              name: newReq.name,
+              email: newReq.email,
+              requestedRole: newReq.requestedRole,
+              companyName: newReq.companyName,
+              status: newReq.status,
+              rejectionReason: newReq.rejectionReason,
+              reviewedById: newReq.reviewedById,
+              createdAt: new Date(newReq.createdAt),
+              reviewedAt: newReq.reviewedAt ? new Date(newReq.reviewedAt) : null,
+            },
+          })
+          .catch(() => {});
+      }
+    }
+
+    return newReq;
+  }
+
+  public updateAccessRequest(id: string, updates: Partial<Omit<AccessRequestRecord, 'id' | 'createdAt'>>) {
+    const index = this.data.accessRequests.findIndex((r) => r.id === id);
+    if (index === -1) return null;
+    this.data.accessRequests[index] = {
+      ...this.data.accessRequests[index],
+      ...updates,
+    };
+
+    if (prisma && this.isPrismaActive) {
+      const p = prisma as any;
+      if (p.accessRequest) {
+        const dataToUpdate: any = { ...updates };
+        if (updates.reviewedAt) dataToUpdate.reviewedAt = new Date(updates.reviewedAt);
+        p.accessRequest
+          .update({
+            where: { id },
+            data: dataToUpdate,
+          })
+          .catch(() => {});
+      }
+    }
+
+    return this.data.accessRequests[index];
+  }
+
+  // --- ISSUED CREDENTIALS ---
+  public getIssuedCredentials(filter?: { createdById?: string }) {
+    let list = this.data.issuedCredentials;
+    if (filter?.createdById) {
+      list = list.filter((c) => c.createdById === filter.createdById);
+    }
+    return list;
+  }
+
+  public createIssuedCredential(cred: Omit<IssuedCredentialRecord, 'id' | 'createdAt'> & { id?: string }) {
+    const id = cred.id || `crd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const now = new Date().toISOString();
+    const newCred: IssuedCredentialRecord = {
+      id,
+      userId: cred.userId,
+      email: cred.email,
+      plaintextPassword: cred.plaintextPassword,
+      createdById: cred.createdById,
+      createdAt: now,
+    };
+    this.data.issuedCredentials.push(newCred);
+
+    if (prisma && this.isPrismaActive) {
+      const p = prisma as any;
+      if (p.issuedCredential) {
+        p.issuedCredential
+          .create({
+            data: {
+              id: newCred.id,
+              userId: newCred.userId,
+              email: newCred.email,
+              plaintextPassword: newCred.plaintextPassword,
+              createdById: newCred.createdById,
+              createdAt: new Date(newCred.createdAt),
+            },
+          })
+          .catch(() => {});
+      }
+    }
+
+    return newCred;
   }
 }
 

@@ -37,6 +37,27 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
+export function generateStrongPassword(length = 12): string {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnopqrstuvwxyz';
+  const numbers = '23456789';
+  const symbols = '!@#$%^&*()_+-=';
+  const all = upper + lower + numbers + symbols;
+
+  let pwd = '';
+  pwd += upper[Math.floor(Math.random() * upper.length)];
+  pwd += lower[Math.floor(Math.random() * lower.length)];
+  pwd += numbers[Math.floor(Math.random() * numbers.length)];
+  pwd += symbols[Math.floor(Math.random() * symbols.length)];
+
+  for (let i = 4; i < length; i++) {
+    pwd += all[Math.floor(Math.random() * all.length)];
+  }
+
+  // Shuffle the password
+  return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
 export function generateToken(user: UserRecord): string {
   const payload: TokenPayload = {
     userId: user.id,

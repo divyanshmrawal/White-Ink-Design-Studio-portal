@@ -83,9 +83,16 @@ authRouter.post('/login', async (req, res) => {
     }
 
     const token = generateToken(user);
+    const safeUser = sanitizeUser(user);
+    const mustChangePassword = user.mustChangePassword ?? false;
+
     return res.json({
       token,
-      user: sanitizeUser(user),
+      user: {
+        ...safeUser,
+        mustChangePassword,
+      },
+      mustChangePassword,
       message: 'Login successful.',
     });
   } catch (error: any) {
@@ -99,8 +106,12 @@ authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) =>
   if (!req.user) {
     return res.status(401).json({ message: 'Unauthorized' });
   }
+  const safeUser = sanitizeUser(req.user);
   return res.json({
-    user: sanitizeUser(req.user),
+    user: {
+      ...safeUser,
+      mustChangePassword: req.user.mustChangePassword ?? false,
+    },
   });
 });
 
@@ -110,27 +121,43 @@ authRouter.post('/change-password', requireAuth, async (req: AuthenticatedReques
     const currentUser = req.user!;
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ message: 'Current password and new password are required.' });
+    if (!newPassword) {
+      return res.status(400).json({ message: 'New password is required.' });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
     }
 
-    // Verify current password against stored hash
-    const isMatch = await comparePassword(currentPassword, currentUser.passwordHash);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Current password is incorrect.' });
+    // If forced first login, skip current password check (or verify if supplied)
+    if (!currentUser.mustChangePassword) {
+      if (!currentPassword) {
+        return res.status(400).json({ message: 'Current password is required.' });
+      }
+      const isMatch = await comparePassword(currentPassword, currentUser.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect.' });
+      }
+    } else if (currentPassword) {
+      const isMatch = await comparePassword(currentPassword, currentUser.passwordHash);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Current password is incorrect.' });
+      }
     }
 
     const newPasswordHash = await hashPassword(newPassword);
-    const updated = db.updateUser(currentUser.id, { passwordHash: newPasswordHash });
+    const updated = db.updateUser(currentUser.id, {
+      passwordHash: newPasswordHash,
+      mustChangePassword: false,
+    });
     if (!updated) {
       return res.status(500).json({ message: 'Failed to update password.' });
     }
 
-    return res.json({ message: 'Password updated successfully.' });
+    return res.json({
+      message: 'Password updated successfully.',
+      user: sanitizeUser(updated),
+    });
   } catch (error: any) {
     console.error('Change password error:', error);
     return res.status(500).json({ message: 'Internal server error during password change.' });

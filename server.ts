@@ -23,6 +23,8 @@ import { activitiesRouter } from './server/routes/activities.ts';
 import { chatRouter } from './server/routes/chat.ts';
 import { settingsRouter } from './server/routes/settings.ts';
 import { pushRouter } from './server/routes/push.ts';
+import { accessRequestsRouter } from './server/routes/access-requests.ts';
+import { credentialsRouter } from './server/routes/credentials.ts';
 
 async function startServer() {
   // Initialize database
@@ -41,6 +43,8 @@ async function startServer() {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/access-requests', accessRequestsRouter);
+  app.use('/api/credentials', credentialsRouter);
   app.use('/api/users', usersRouter);
   app.use('/api/clients', clientsRouter);
   app.use('/api/projects', projectsRouter);

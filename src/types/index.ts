@@ -28,8 +28,36 @@ export interface User {
   profileImage?: string | null;
   fcmToken?: string | null;
   clientId?: string | null;
+  mustChangePassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type AccessRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface AccessRequest {
+  id: string;
+  name: string;
+  email: string;
+  requestedRole: Role;
+  companyName?: string | null;
+  status: AccessRequestStatus;
+  rejectionReason?: string | null;
+  reviewedById?: string | null;
+  reviewedBy?: User | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+}
+
+export interface IssuedCredential {
+  id: string;
+  userId: string;
+  email: string;
+  plaintextPassword: string;
+  createdById: string;
+  createdAt: string;
+  user?: User | null;
+  createdBy?: User | null;
 }
 
 export interface Client {

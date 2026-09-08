@@ -8,7 +8,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<void>;
-  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; companyName?: string }) => Promise<void>;
+  requestAccess: (payload: { name: string; email: string; requestedRole: Role; companyName?: string }) => Promise<{ message: string }>;
   logout: () => void;
   quickSwitchAccount: (email: string, password?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -22,10 +22,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshUser = useCallback(async () => {
-    localStorage.removeItem('pms_auth_token');
-    setToken(null);
-    setUser(null);
-    setIsLoading(false);
+    const savedToken = localStorage.getItem('pms_auth_token');
+    if (!savedToken) {
+      setToken(null);
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const res = await api.getMe();
+      setToken(savedToken);
+      setUser(res.user);
+    } catch {
+      localStorage.removeItem('pms_auth_token');
+      setToken(null);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -48,7 +62,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const response = await api.login({ email, password: pwd });
       localStorage.setItem('pms_auth_token', response.token);
       setToken(response.token);
-      setUser(response.user);
+      setUser({
+        ...response.user,
+        mustChangePassword: response.user.mustChangePassword ?? (response as any).mustChangePassword ?? false,
+      });
 
       // Request notification permission and register user's FCM token
       initAndRegisterFcmToken().catch((e) => console.info('[FCM] Token registration:', e?.message || e));
@@ -57,16 +74,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (payload: { name: string; email: string; password: string; confirmPassword?: string; companyName?: string }) => {
+  const requestAccess = async (payload: { name: string; email: string; requestedRole: Role; companyName?: string }) => {
     setIsLoading(true);
     try {
-      const response = await api.register(payload);
-      localStorage.setItem('pms_auth_token', response.token);
-      setToken(response.token);
-      setUser(response.user);
-
-      // Request notification permission and register user's FCM token
-      initAndRegisterFcmToken().catch((e) => console.info('[FCM] Token registration:', e?.message || e));
+      const response = await api.requestAccess(payload);
+      return response;
     } finally {
       setIsLoading(false);
     }
@@ -89,7 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isLoading,
         login,
-        register,
+        requestAccess,
         logout,
         quickSwitchAccount,
         refreshUser,
