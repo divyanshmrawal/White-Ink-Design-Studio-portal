@@ -10,11 +10,9 @@ import {
   Users,
   Search,
   Plus,
-  Shield,
   Edit2,
   Trash2,
   Mail,
-  Calendar,
 } from 'lucide-react';
 
 export const UsersPage: React.FC = () => {
@@ -64,25 +62,25 @@ export const UsersPage: React.FC = () => {
     switch (role) {
       case 'SUPER_ADMIN':
         return (
-          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+          <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-black text-gold-400 border border-gold-600 shadow-2xs">
             Super Admin
           </span>
         );
       case 'ADMIN':
         return (
-          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+          <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-gold-200 text-black border border-gold-400">
             Admin
           </span>
         );
       case 'TEAM_MEMBER':
         return (
-          <span className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-gold-100 text-black border border-gold-300">
             Team Member
           </span>
         );
       case 'CLIENT':
         return (
-          <span className="px-2.5 py-0.5 text-xs font-medium rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-white text-black border border-gold-300">
             Client Partner
           </span>
         );
@@ -94,8 +92,8 @@ export const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#111827]">User Management</h1>
-          <p className="text-sm text-[#6B7280]">
+          <h1 className="section-heading text-heading">User Management</h1>
+          <p className="muted mt-1">
             Manage system access credentials, role-based authorizations, and staff profiles
           </p>
         </div>
@@ -106,7 +104,7 @@ export const UsersPage: React.FC = () => {
             setEditingUser(null);
             setIsModalOpen(true);
           }}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
+          className="btn-primary btn-hover-lift inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
           Add User
@@ -114,22 +112,22 @@ export const UsersPage: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white p-3.5 rounded-xl border border-[#E5E7EB] shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
+      <div className="bg-card p-3.5 rounded-xl border border-gold-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#9CA3AF]" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-700" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or email..."
-            className="w-full pl-9 pr-3.5 py-1.5 text-xs sm:text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+            className="w-full pl-9 pr-3.5 py-1.5 text-xs sm:text-sm bg-gold-50/50 border border-gold-200 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="w-full sm:w-auto px-3 py-1.5 text-xs font-medium bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#374151] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 cursor-pointer"
+          className="w-full sm:w-auto px-3 py-1.5 text-xs font-medium bg-gold-50/50 border border-gold-200 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 cursor-pointer"
         >
           <option value="ALL">All Roles</option>
           <option value="SUPER_ADMIN">Super Admin</option>
@@ -154,11 +152,11 @@ export const UsersPage: React.FC = () => {
           }}
         />
       ) : (
-        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs divide-y divide-[#E5E7EB] overflow-hidden">
+        <div className="bg-card rounded-xl border border-gold-200 shadow-xs divide-y divide-gold-100 overflow-hidden">
           {users.map((u) => (
             <div
               key={u.id}
-              className="p-4 sm:p-5 hover:bg-gray-50/70 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className="p-4 sm:p-5 hover:bg-gold-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
               <div className="flex items-center gap-3.5 min-w-0">
                 <img
@@ -167,25 +165,25 @@ export const UsersPage: React.FC = () => {
                     `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name)}`
                   }
                   alt={u.name}
-                  className="h-10 w-10 rounded-lg border border-[#E5E7EB] object-cover"
+                  className="h-10 w-10 rounded-lg border border-gold-200 object-cover"
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-[#111827] truncate">{u.name}</h3>
+                    <h3 className="text-sm font-bold text-heading truncate">{u.name}</h3>
                     {u.id === currentUser?.id && (
-                      <span className="text-[10px] bg-gray-100 text-[#4B5563] px-1.5 py-0.5 rounded font-medium">
+                      <span className="text-[10px] bg-gold-200 text-black px-1.5 py-0.5 rounded font-bold border border-gold-400">
                         You
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[#6B7280] flex items-center gap-1.5 mt-0.5">
-                    <Mail className="h-3 w-3 text-[#9CA3AF]" />
+                  <p className="muted flex items-center gap-1.5 mt-0.5 text-xs">
+                    <Mail className="h-3 w-3 text-gold-700" />
                     {u.email}
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#E5E7EB]">
+              <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gold-100">
                 {getRoleBadge(u.role)}
 
                 <div className="flex items-center gap-1">
@@ -195,7 +193,7 @@ export const UsersPage: React.FC = () => {
                       setEditingUser(u);
                       setIsModalOpen(true);
                     }}
-                    className="p-1.5 text-[#9CA3AF] hover:text-[#111827] hover:bg-gray-100 rounded-md transition-colors cursor-pointer"
+                    className="p-1.5 text-black/60 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
                     title="Edit User"
                   >
                     <Edit2 className="h-4 w-4" />
@@ -204,7 +202,7 @@ export const UsersPage: React.FC = () => {
                     type="button"
                     onClick={() => setDeletingUser(u)}
                     disabled={u.id === currentUser?.id}
-                    className="p-1.5 text-[#9CA3AF] hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-[#9CA3AF] cursor-pointer"
+                    className="p-1.5 text-black/40 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-black/40 cursor-pointer"
                     title="Delete User"
                   >
                     <Trash2 className="h-4 w-4" />

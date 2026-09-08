@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
 import { LoginPage } from './pages/LoginPage';
+import { LandingPage } from './pages/LandingPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectsPage } from './pages/ProjectsPage';
@@ -33,7 +34,7 @@ import { Client, Project, User } from './types';
 
 function MainApp() {
   const { user, isLoading } = useAuth();
-  const [authView, setAuthView] = useState<'login' | 'register'>('login');
+  const [authView, setAuthView] = useState<'landing' | 'login' | 'register'>('landing');
   const [currentPath, setCurrentPath] = useState<string>('/dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -71,6 +72,14 @@ function MainApp() {
   }
 
   if (!user) {
+    if (authView === 'landing') {
+      return (
+        <LandingPage
+          onLogin={() => setAuthView('login')}
+          onRegister={() => setAuthView('register')}
+        />
+      );
+    }
     if (authView === 'register') {
       return <RegisterPage onNavigateToLogin={() => setAuthView('login')} />;
     }

@@ -71,7 +71,7 @@ export const KanbanPage: React.FC = () => {
     { id: 'TODO', title: 'To Do', color: 'border-gold-300', badgeBg: 'bg-gold-100 text-black border border-gold-300' },
     { id: 'IN_PROGRESS', title: 'In Progress', color: 'border-gold-400', badgeBg: 'bg-gold-200 text-black border border-gold-400' },
     { id: 'REVIEW', title: 'Review', color: 'border-gold-500', badgeBg: 'bg-gold-300 text-black border border-gold-500' },
-    { id: 'COMPLETED', title: 'Completed', color: 'border-emerald-300', badgeBg: 'bg-emerald-50 text-emerald-800 border border-emerald-300' },
+    { id: 'COMPLETED', title: 'Completed', color: 'border-gold-400', badgeBg: 'bg-gold-200 text-black border border-gold-400 font-bold' },
   ];
 
   const handleStatusUpdate = async (taskId: string, newStatus: TaskStatus) => {

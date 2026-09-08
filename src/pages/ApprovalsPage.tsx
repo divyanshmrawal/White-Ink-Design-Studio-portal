@@ -229,8 +229,8 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
     switch (status) {
       case 'APPROVED':
         return (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Approved
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-gold-200 text-black border border-gold-400">
+            <CheckCircle2 className="h-3.5 w-3.5 text-gold-800" /> Approved
           </span>
         );
       case 'REJECTED':
@@ -300,11 +300,11 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
 
         <div className="bg-white p-4 rounded-xl border border-gold-300 shadow-sm flex items-center gap-3">
           <div className="p-2.5 bg-gold-100 text-gold-700 border border-gold-300 rounded-lg shrink-0">
-            <CheckCircle2 className="h-5 w-5 text-emerald-600 stroke-[2.5]" />
+            <CheckCircle2 className="h-5 w-5 text-gold-700 stroke-[2.5]" />
           </div>
           <div>
             <div className="text-xs font-bold text-black/60">Approved</div>
-            <div className="text-xl font-extrabold text-emerald-700">{approvedCount}</div>
+            <div className="text-xl font-extrabold text-black">{approvedCount}</div>
           </div>
         </div>
 
@@ -496,7 +496,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                                     ? 'Task must reach 100% and be submitted before approval'
                                     : undefined
                                 }
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black hover:bg-gold-500 text-gold-400 hover:text-black border border-gold-400/50 text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 {taskActionLoading === task.id
@@ -593,7 +593,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                     )}
                     {item.reviewedBy && (
                       <span className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                        <CheckCircle2 className="h-3 w-3 text-gold-700" />
                         Reviewed by <span className="font-bold text-black">{item.reviewedBy.name}</span>
                       </span>
                     )}
@@ -619,7 +619,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                       <button
                         type="button"
                         onClick={() => handleOpenReview(item, 'APPROVED')}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black hover:bg-gold-500 text-gold-400 hover:text-black border border-gold-400/50 text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Approve
@@ -767,7 +767,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
             <div className="flex items-center justify-between border-b border-gold-200 pb-3">
               <h2 className="text-lg font-extrabold text-black flex items-center gap-2">
                 {reviewDecision === 'APPROVED' ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle2 className="h-5 w-5 text-gold-600" />
                 ) : (
                   <XCircle className="h-5 w-5 text-rose-600" />
                 )}
@@ -835,7 +835,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
                   disabled={reviewLoading}
                   className={`px-4 py-2 text-xs font-bold text-white rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-xs btn-hover-lift ${
                     reviewDecision === 'APPROVED'
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
+                      ? 'bg-black hover:bg-gold-500 text-gold-400 hover:text-black border border-gold-400'
                       : 'bg-rose-600 hover:bg-rose-700'
                   }`}
                 >

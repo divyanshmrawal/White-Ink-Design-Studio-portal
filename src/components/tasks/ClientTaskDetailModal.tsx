@@ -136,7 +136,7 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
                   task.revisionRequest.priority === 'HIGH'
                     ? 'bg-rose-100 text-rose-700 border-rose-300'
                     : task.revisionRequest.priority === 'LOW'
-                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
+                    ? 'bg-gold-100 text-black border-gold-300'
                     : 'bg-amber-100 text-amber-700 border-amber-300'
                 }`}>
                   {task.revisionRequest.priority} Priority
@@ -191,10 +191,10 @@ export const ClientTaskDetailModal: React.FC<ClientTaskDetailModalProps> = ({
               title={!isComplete ? 'Task must reach 100% and be submitted before approval' : undefined}
               className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                 isAlreadyApproved
-                  ? 'bg-emerald-100 text-emerald-700 border border-emerald-300 cursor-default'
+                  ? 'bg-gold-200 text-black border border-gold-400 cursor-default'
                   : !canApprove
                   ? 'bg-gold-100 text-black/40 border border-gold-200 cursor-default'
-                  : 'bg-[#8B7355] hover:bg-[#7a6347] text-white border border-[#7a6347] shadow-sm btn-hover-lift'
+                  : 'bg-black hover:bg-gold-500 text-gold-400 hover:text-black border border-gold-400/50 shadow-sm btn-hover-lift'
               } disabled:opacity-60`}
             >
               <CheckCircle2 className="h-4 w-4 shrink-0" />

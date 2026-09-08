@@ -280,7 +280,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                     )}
 
                     {task.clientApprovalStatus === 'APPROVED' && (
-                      <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                      <span className="text-[11px] font-extrabold text-black bg-gold-200 border border-gold-400 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
                         Client Approved
                       </span>
                     )}

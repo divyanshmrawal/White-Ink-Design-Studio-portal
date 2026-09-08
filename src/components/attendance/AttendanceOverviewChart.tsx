@@ -58,7 +58,7 @@ export const AttendanceOverviewChart: React.FC<AttendanceOverviewChartProps> = (
             />
             <div
               style={{ width: `${onLeavePct}%` }}
-              className="bg-purple-400 h-full transition-all duration-500"
+              className="bg-neutral-400 h-full transition-all duration-500"
               title={`On Leave: ${stats.onLeaveToday}`}
             />
             <div
@@ -83,11 +83,11 @@ export const AttendanceOverviewChart: React.FC<AttendanceOverviewChartProps> = (
               <span className="font-extrabold text-amber-950">{stats.lateToday}</span>
             </div>
 
-            <div className="flex items-center justify-between p-2 rounded-lg bg-purple-50 border border-purple-200">
-              <span className="flex items-center gap-1.5 text-purple-900 font-bold">
-                <span className="w-2 h-2 rounded-full bg-purple-500" /> On Leave
+            <div className="flex items-center justify-between p-2 rounded-lg bg-neutral-100 border border-neutral-200">
+              <span className="flex items-center gap-1.5 text-neutral-800 font-bold">
+                <span className="w-2 h-2 rounded-full bg-neutral-500" /> On Leave
               </span>
-              <span className="font-extrabold text-purple-950">{stats.onLeaveToday}</span>
+              <span className="font-extrabold text-black">{stats.onLeaveToday}</span>
             </div>
 
             <div className="flex items-center justify-between p-2 rounded-lg bg-rose-50 border border-rose-200">
@@ -129,7 +129,7 @@ export const AttendanceOverviewChart: React.FC<AttendanceOverviewChartProps> = (
               <span className="w-2.5 h-2.5 rounded-xs bg-amber-400" /> Late
             </span>
             <span className="flex items-center gap-1 text-black">
-              <span className="w-2.5 h-2.5 rounded-xs bg-purple-400" /> Leave
+              <span className="w-2.5 h-2.5 rounded-xs bg-neutral-400" /> Leave
             </span>
           </div>
         </div>
@@ -154,7 +154,7 @@ export const AttendanceOverviewChart: React.FC<AttendanceOverviewChartProps> = (
                     {leaveHeight > 0 && (
                       <div
                         style={{ height: `${leaveHeight}%` }}
-                        className="w-full bg-purple-400"
+                        className="w-full bg-neutral-400"
                         title={`Leave: ${item.onLeave}`}
                       />
                     )}

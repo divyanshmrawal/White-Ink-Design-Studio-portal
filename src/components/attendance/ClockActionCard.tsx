@@ -177,13 +177,13 @@ export const ClockActionCard: React.FC<ClockActionCardProps> = ({
                 Not Clocked In Today
               </span>
             ) : isClockedOut ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-900 border border-emerald-400">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-700" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gold-200 text-black border border-gold-400 shadow-xs">
+                <CheckCircle2 className="h-3.5 w-3.5 text-gold-800" />
                 Shift Completed
               </span>
             ) : isOnBreak ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-400 animate-pulse">
-                <Coffee className="h-3.5 w-3.5 text-amber-700" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-gold-100 text-black border border-gold-400 shadow-xs animate-pulse">
+                <Coffee className="h-3.5 w-3.5 text-gold-700" />
                 On Break (Taking a breather)
               </span>
             ) : (
@@ -296,7 +296,7 @@ export const ClockActionCard: React.FC<ClockActionCardProps> = ({
           ) : isClockedOut ? (
             <div className="bg-gold-50 border border-gold-300 rounded-xl p-6 text-center space-y-2">
               <div className="inline-flex p-3 bg-gold-200 text-black border border-gold-400 rounded-full mb-1">
-                <CheckCircle2 className="h-6 w-6 text-emerald-700" />
+                <CheckCircle2 className="h-6 w-6 text-gold-800" />
               </div>
               <h3 className="text-base font-extrabold text-black">
                 You have completed your shift for today!

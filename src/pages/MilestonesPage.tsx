@@ -14,7 +14,6 @@ import {
   FolderKanban,
   Edit2,
   Trash2,
-  ChevronRight,
   TrendingUp,
   X,
 } from 'lucide-react';
@@ -185,7 +184,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
 
     if (isOverdue || status === 'OVERDUE') {
       return (
-        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
           <AlertTriangle className="h-3 w-3" /> Overdue
         </span>
       );
@@ -194,20 +193,20 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
     switch (status) {
       case 'COMPLETED':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-            <CheckCircle2 className="h-3 w-3" /> Completed
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gold-200 text-black border border-gold-400">
+            <CheckCircle2 className="h-3 w-3 text-gold-800" /> Completed
           </span>
         );
       case 'IN_PROGRESS':
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
-            <TrendingUp className="h-3 w-3" /> In Progress
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-gold-100 text-black border border-gold-300">
+            <TrendingUp className="h-3 w-3 text-gold-700" /> In Progress
           </span>
         );
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-            <Clock className="h-3 w-3" /> Pending
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-white text-black/70 border border-gold-300">
+            <Clock className="h-3 w-3 text-gold-600" /> Pending
           </span>
         );
     }
@@ -218,12 +217,12 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 flex items-center gap-2.5">
-            <Flag className="h-6 w-6 text-indigo-600" />
+          <h1 className="section-heading text-heading flex items-center gap-2.5">
+            <Flag className="h-6 w-6 text-gold-600" />
             Project Milestones
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Track key project checkpoints, release targets, and deliverables
+          <p className="muted mt-1">
+            Track key studio checkpoints, client sign-offs, and drawing package deliverables
           </p>
         </div>
 
@@ -231,7 +230,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="btn-primary btn-hover-lift inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             New Milestone
@@ -241,68 +240,68 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3">
-          <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
+        <div className="bg-card p-4 rounded-xl border border-gold-200 shadow-xs flex items-center gap-3 card-hover-lift">
+          <div className="p-2.5 bg-gold-100 text-gold-800 rounded-lg shrink-0 border border-gold-300">
             <Flag className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">Total Milestones</div>
-            <div className="text-xl font-bold text-gray-900">{totalCount}</div>
+            <div className="text-xs font-bold text-gold-700">Total Milestones</div>
+            <div className="text-xl font-extrabold text-heading">{totalCount}</div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3">
-          <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg shrink-0">
-            <CheckCircle2 className="h-5 w-5" />
+        <div className="bg-card p-4 rounded-xl border border-gold-200 shadow-xs flex items-center gap-3 card-hover-lift">
+          <div className="p-2.5 bg-gold-200 text-black rounded-lg shrink-0 border border-gold-400">
+            <CheckCircle2 className="h-5 w-5 text-gold-800" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">Completed</div>
-            <div className="text-xl font-bold text-gray-900">{completedCount}</div>
+            <div className="text-xs font-bold text-gold-700">Completed</div>
+            <div className="text-xl font-extrabold text-heading">{completedCount}</div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 text-blue-600 rounded-lg shrink-0">
+        <div className="bg-card p-4 rounded-xl border border-gold-200 shadow-xs flex items-center gap-3 card-hover-lift">
+          <div className="p-2.5 bg-gold-100 text-gold-800 rounded-lg shrink-0 border border-gold-300">
             <TrendingUp className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">In Progress</div>
-            <div className="text-xl font-bold text-gray-900">{inProgressCount}</div>
+            <div className="text-xs font-bold text-gold-700">In Progress</div>
+            <div className="text-xl font-extrabold text-heading">{inProgressCount}</div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center gap-3">
-          <div className="p-2.5 bg-rose-50 text-rose-600 rounded-lg shrink-0">
+        <div className="bg-card p-4 rounded-xl border border-gold-200 shadow-xs flex items-center gap-3 card-hover-lift">
+          <div className="p-2.5 bg-rose-50 text-rose-600 rounded-lg shrink-0 border border-rose-200">
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div>
-            <div className="text-xs font-medium text-gray-500">Overdue / Delayed</div>
-            <div className="text-xl font-bold text-gray-900">{delayedCount}</div>
+            <div className="text-xs font-bold text-gold-700">Overdue / Delayed</div>
+            <div className="text-xl font-extrabold text-heading">{delayedCount}</div>
           </div>
         </div>
       </div>
 
       {/* Filter Toolbar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-card p-4 rounded-xl border border-gold-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gold-700" />
           <input
             type="text"
             placeholder="Search milestones..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="w-full pl-9 pr-4 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Project Filter */}
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-gray-400" />
+            <Filter className="h-4 w-4 text-gold-700" />
             <select
               value={selectedProject}
               onChange={(e) => setSelectedProject(e.target.value)}
-              className="text-xs font-medium py-2 px-3 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+              className="text-xs font-medium py-2 px-3 bg-gold-50/40 border border-gold-300 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-gold-500 text-heading cursor-pointer"
             >
               <option value="ALL">All Projects</option>
               {projects.map((p) => (
@@ -317,7 +316,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="text-xs font-medium py-2 px-3 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-700"
+            className="text-xs font-medium py-2 px-3 bg-gold-50/40 border border-gold-300 rounded-lg focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-gold-500 text-heading cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="PENDING">Pending</option>
@@ -330,15 +329,15 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
 
       {/* Milestones List */}
       {loading ? (
-        <div className="p-12 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent mb-3" />
+        <div className="p-12 text-center text-gold-700 bg-card rounded-xl border border-gold-200">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gold-500 border-t-transparent mb-3" />
           <p className="text-sm font-medium">Loading milestones...</p>
         </div>
       ) : milestones.length === 0 ? (
-        <div className="p-12 text-center text-gray-500 bg-white rounded-xl border border-gray-200">
-          <Flag className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <h3 className="text-base font-semibold text-gray-800">No milestones found</h3>
-          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto">
+        <div className="p-12 text-center text-gold-700 bg-card rounded-xl border border-gold-200">
+          <Flag className="h-10 w-10 text-gold-400 mx-auto mb-3" />
+          <h3 className="text-base font-semibold text-heading">No milestones found</h3>
+          <p className="text-xs text-gold-700 mt-1 max-w-sm mx-auto">
             {search || selectedProject !== 'ALL' || selectedStatus !== 'ALL'
               ? 'No milestones match the current filters. Try changing your search query.'
               : 'Start by creating major targets and milestone checkpoints for your projects.'}
@@ -347,7 +346,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
             <button
               type="button"
               onClick={handleOpenCreate}
-              className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+              className="btn-primary btn-hover-lift mt-4 inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Plus className="h-3.5 w-3.5" />
               Add First Milestone
@@ -363,7 +362,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
             return (
               <div
                 key={m.id}
-                className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs hover:border-indigo-200 transition-all flex flex-col justify-between"
+                className="bg-card rounded-xl border border-gold-200 p-5 shadow-xs hover:border-gold-400 card-hover-lift transition-all flex flex-col justify-between"
               >
                 <div>
                   {/* Card Header */}
@@ -374,15 +373,15 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                           <button
                             type="button"
                             onClick={() => onNavigate && onNavigate(`/projects/${project.id}`)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded border border-indigo-100 transition-colors"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-black bg-gold-100 hover:bg-gold-200 px-2 py-0.5 rounded border border-gold-300 transition-colors cursor-pointer"
                           >
-                            <FolderKanban className="h-3 w-3" />
+                            <FolderKanban className="h-3 w-3 text-gold-700" />
                             <span className="truncate max-w-[140px]">{project.name}</span>
                           </button>
                         )}
                         {getStatusBadge(m.status, m.dueDate)}
                       </div>
-                      <h3 className="text-base font-bold text-gray-900 leading-snug pt-1">
+                      <h3 className="text-base font-bold text-heading leading-snug pt-1">
                         {m.name}
                       </h3>
                     </div>
@@ -392,7 +391,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                         <button
                           type="button"
                           onClick={() => handleOpenEdit(m)}
-                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          className="p-1.5 text-black/50 hover:text-black hover:bg-gold-100 rounded-lg transition-colors cursor-pointer"
                           title="Edit Milestone"
                         >
                           <Edit2 className="h-4 w-4" />
@@ -400,7 +399,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                         <button
                           type="button"
                           onClick={() => handleDelete(m.id, m.name)}
-                          className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                          className="p-1.5 text-black/40 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Milestone"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -411,36 +410,36 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
 
                   {/* Description */}
                   {m.description && (
-                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed mb-4">
+                    <p className="muted line-clamp-2 leading-relaxed mb-4 text-xs">
                       {m.description}
                     </p>
                   )}
                 </div>
 
                 {/* Progress Bar & Footer */}
-                <div className="pt-3 border-t border-gray-100 mt-2 space-y-3">
+                <div className="pt-3 border-t border-gold-100 mt-2 space-y-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-500">Progress</span>
-                      <span className="font-bold text-gray-800">{progress}%</span>
+                      <span className="font-semibold text-gold-800">Progress</span>
+                      <span className="font-extrabold text-heading">{progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-gold-100 h-2 rounded-full overflow-hidden border border-gold-200">
                       <div
                         className={`h-full rounded-full transition-all ${
                           m.status === 'COMPLETED'
-                            ? 'bg-emerald-500'
+                            ? 'bg-gold-500'
                             : m.status === 'DELAYED'
                             ? 'bg-rose-500'
-                            : 'bg-indigo-600'
+                            : 'bg-gold-400'
                         }`}
                         style={{ width: `${progress}%` }}
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 text-xs text-gray-500">
+                  <div className="flex items-center justify-between pt-1 text-xs text-gold-700">
                     <div className="flex items-center gap-1.5 font-medium">
-                      <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                      <Calendar className="h-3.5 w-3.5 text-gold-600" />
                       {m.dueDate ? (
                         <span>Target: {new Date(m.dueDate).toLocaleDateString()}</span>
                       ) : (
@@ -452,7 +451,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                       <select
                         value={m.status}
                         onChange={(e) => handleQuickStatusChange(m, e.target.value as MilestoneStatus)}
-                        className="text-[11px] font-semibold py-1 px-2 border border-gray-200 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-700 cursor-pointer focus:ring-1 focus:ring-indigo-500"
+                        className="text-[11px] font-semibold py-1 px-2 border border-gold-300 rounded-md bg-gold-50/50 hover:bg-gold-100 text-heading cursor-pointer focus:ring-1 focus:ring-gold-500"
                       >
                         <option value="PENDING">Pending</option>
                         <option value="IN_PROGRESS">In Progress</option>
@@ -471,16 +470,16 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
       {/* Create / Edit Milestone Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                <Flag className="h-5 w-5 text-indigo-600" />
+          <div className="bg-card rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gold-300 space-y-4">
+            <div className="flex items-center justify-between border-b border-gold-200 pb-3">
+              <h2 className="text-lg font-bold text-heading flex items-center gap-2">
+                <Flag className="h-5 w-5 text-gold-600" />
                 {editingMilestone ? 'Edit Milestone' : 'Create New Milestone'}
               </h2>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+                className="p-1 text-black/50 hover:text-black rounded-lg cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -494,28 +493,28 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
 
             <form onSubmit={handleModalSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="form-label block mb-1">
                   Milestone Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., Phase 1 Alpha Release, Payment Gateway V2"
+                  placeholder="e.g., Schematic Design Package Clearance, Client Sign-off Phase 2"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="form-label block mb-1">
                   Associated Project *
                 </label>
                 <select
                   required
                   value={formData.projectId}
                   onChange={(e) => setFormData({ ...formData, projectId: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden cursor-pointer"
                 >
                   <option value="" disabled>
                     Select Project
@@ -529,33 +528,33 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                <label className="form-label block mb-1">
                   Description
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Summary of deliverables, criteria, and scope..."
+                  placeholder="Summary of architectural deliverables, criteria, and scope..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="form-label block mb-1">
                     Due Date
                   </label>
                   <input
                     type="date"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  <label className="form-label block mb-1">
                     Initial Status
                   </label>
                   <select
@@ -563,19 +562,19 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                     onChange={(e) =>
                       setFormData({ ...formData, status: e.target.value as MilestoneStatus })
                     }
-                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                    className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden cursor-pointer"
                   >
                     <option value="PENDING">Pending</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="COMPLETED">Completed</option>
-                    <option value="OVERDUE">Overdue</option>
+                    <option value="DELAYED">Delayed</option>
                   </select>
                 </div>
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-gray-700">
+                  <label className="form-label">
                     Completion Progress ({formData.progress}%)
                   </label>
                 </div>
@@ -586,22 +585,22 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
                   step="5"
                   value={formData.progress}
                   onChange={(e) => setFormData({ ...formData, progress: Number(e.target.value) })}
-                  className="w-full accent-indigo-600"
+                  className="w-full accent-gold-500"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-100">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gold-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-heading bg-white hover:bg-gold-50 border border-gold-300 rounded-lg transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={modalSubmitting}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+                  className="btn-primary btn-hover-lift px-4 py-2 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   {modalSubmitting ? 'Saving...' : editingMilestone ? 'Update Milestone' : 'Create Milestone'}
                 </button>

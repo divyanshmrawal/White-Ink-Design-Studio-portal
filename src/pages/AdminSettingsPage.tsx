@@ -255,7 +255,7 @@ export const AdminSettingsPage: React.FC = () => {
 
             {saveSuccess && (
               <div className="p-3 bg-gold-50 border border-gold-300 text-black font-bold text-xs rounded-lg flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <CheckCircle2 className="h-4 w-4 text-gold-700 shrink-0" />
                 <span>System policies and working schedule updated successfully!</span>
               </div>
             )}

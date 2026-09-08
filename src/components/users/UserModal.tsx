@@ -108,7 +108,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         )}
 
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
+          <label className="form-label block mb-1 text-heading">
             Full Name <span className="text-rose-500">*</span>
           </label>
           <input
@@ -117,12 +117,12 @@ export const UserModal: React.FC<UserModalProps> = ({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Alex Vance"
-            className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
+          <label className="form-label block mb-1 text-heading">
             Email Address <span className="text-rose-500">*</span>
           </label>
           <input
@@ -131,12 +131,12 @@ export const UserModal: React.FC<UserModalProps> = ({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="e.g., alex@company.com"
-            className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
+          <label className="form-label block mb-1 text-heading">
             {isEditing ? 'Password (leave blank to keep current)' : 'Password *'}
           </label>
           <input
@@ -145,18 +145,18 @@ export const UserModal: React.FC<UserModalProps> = ({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder={isEditing ? '••••••••' : 'Minimum 6 characters'}
-            className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
+          <label className="form-label block mb-1 text-heading">
             System Role <span className="text-rose-500">*</span>
           </label>
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
-            className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600 cursor-pointer"
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
           >
             {isSuperAdmin && <option value="SUPER_ADMIN">SUPER ADMIN (Full root access)</option>}
             <option value="ADMIN">ADMIN (Project & Team management)</option>
@@ -166,7 +166,7 @@ export const UserModal: React.FC<UserModalProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-[#4B5563] mb-1">
+          <label className="form-label block mb-1 text-heading">
             Profile Image URL (optional)
           </label>
           <input
@@ -174,24 +174,24 @@ export const UserModal: React.FC<UserModalProps> = ({
             value={profileImage}
             onChange={(e) => setProfileImage(e.target.value)}
             placeholder="https://images.unsplash.com/..."
-            className="w-full px-3.5 py-2 text-sm bg-gray-50 border border-[#E5E7EB] rounded-lg text-[#111827] focus:outline-none focus:bg-white focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#E5E7EB]">
+        <div className="flex items-center justify-end gap-3 pt-4 border-t border-gold-200">
           <button
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-[#374151] bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
+            className="px-4 py-2 text-sm font-semibold text-heading bg-white border border-gold-300 hover:bg-gold-50 rounded-lg transition-colors disabled:opacity-50 cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 shadow-xs cursor-pointer"
+            className="btn-primary btn-hover-lift px-5 py-2 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 shadow-xs cursor-pointer"
           >
             {isSubmitting ? 'Saving...' : isEditing ? 'Update User' : 'Create User'}
           </button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Shield, Mail, CheckCircle2, FolderKanban, CheckSquare, Key } from 'lucide-react';
+import { Shield, Mail, CheckCircle2, FolderKanban, CheckSquare } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuth();
@@ -32,15 +32,15 @@ export const ProfilePage: React.FC = () => {
   const getRoleDescription = () => {
     switch (user?.role) {
       case 'SUPER_ADMIN':
-        return 'Full unrestricted administrative privileges across the entire database, user authorization management, projects, clients, and system configurations.';
+        return 'Full unrestricted administrative privileges across the entire studio platform, team authorization management, project pipelines, client portals, and system settings.';
       case 'ADMIN':
-        return 'Project manager permissions allowing project creation, task management, client management, and team assignment.';
+        return 'Studio manager permissions allowing project initiation, task delegation, client collaboration, and milestone sign-offs.';
       case 'TEAM_MEMBER':
-        return 'Internal engineering and design access. Can view assigned projects, create and update tasks, log progress, and participate in discussion threads.';
+        return 'Architectural and interior design studio access. View assigned projects, track tasks, update deliverables, and log attendance.';
       case 'CLIENT':
-        return 'External stakeholder visibility. Allows monitoring linked project progress, reviewing active deliverables, and posting feedback.';
+        return 'External client stakeholder portal. Monitor linked design stages, review drawings and specification packages, and approve project phases.';
       default:
-        return 'Standard system access.';
+        return 'Standard studio workspace access.';
     }
   };
 
@@ -58,14 +58,14 @@ export const ProfilePage: React.FC = () => {
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-[#111827]">User Profile</h1>
-        <p className="text-sm text-[#6B7280]">
-          Account credentials, role permissions, and active workspace deliverables
+        <h1 className="section-heading text-heading">User Profile</h1>
+        <p className="muted mt-1">
+          Account credentials, studio role permissions, and active workspace deliverables
         </p>
       </div>
 
       {/* Main Profile Card */}
-      <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-6 sm:p-8 space-y-6">
+      <div className="bg-card rounded-xl border border-gold-200 shadow-xs p-6 sm:p-8 space-y-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
           <img
             src={
@@ -75,55 +75,55 @@ export const ProfilePage: React.FC = () => {
               )}`
             }
             alt={user?.name}
-            className="h-16 w-16 rounded-xl border border-[#E5E7EB] object-cover shadow-xs"
+            className="h-16 w-16 rounded-xl border border-gold-300 object-cover shadow-xs"
           />
 
           <div className="text-center sm:text-left space-y-1 flex-1">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <h2 className="text-xl font-bold text-[#111827]">{user?.name}</h2>
-              <span className="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+              <h2 className="text-xl font-bold text-heading">{user?.name}</h2>
+              <span className="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full bg-gold-200 text-black border border-gold-400">
                 {user?.role?.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-xs text-[#6B7280] flex items-center justify-center sm:justify-start gap-1.5 pt-1">
-              <Mail className="h-3.5 w-3.5 text-[#9CA3AF]" />
+            <p className="muted flex items-center justify-center sm:justify-start gap-1.5 pt-1 text-xs">
+              <Mail className="h-3.5 w-3.5 text-gold-700" />
               {user?.email}
             </p>
-            <p className="text-xs text-[#4B5563] pt-2 leading-relaxed max-w-xl">
+            <p className="text-xs text-gold-900/80 pt-2 leading-relaxed max-w-xl">
               {getRoleDescription()}
             </p>
           </div>
         </div>
 
         {/* User Workspace Metrics */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-[#E5E7EB]">
-          <div className="bg-gray-50 p-4 rounded-xl border border-[#E5E7EB] flex items-center gap-3">
-            <div className="p-2 bg-indigo-100/70 text-indigo-700 rounded-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gold-200">
+          <div className="bg-gold-50/60 p-4 rounded-xl border border-gold-200 flex items-center gap-3">
+            <div className="p-2.5 bg-gold-200 text-black border border-gold-300 rounded-lg">
               <FolderKanban className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-bold text-[#111827]">{assignedProjectsCount}</div>
-              <div className="text-xs text-[#6B7280]">Accessible Projects</div>
+              <div className="text-lg font-extrabold text-heading">{assignedProjectsCount}</div>
+              <div className="text-xs text-gold-800">Accessible Projects</div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-xl border border-[#E5E7EB] flex items-center gap-3">
-            <div className="p-2 bg-sky-100/70 text-sky-700 rounded-lg">
+          <div className="bg-gold-50/60 p-4 rounded-xl border border-gold-200 flex items-center gap-3">
+            <div className="p-2.5 bg-gold-100 text-gold-800 border border-gold-300 rounded-lg">
               <CheckSquare className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-bold text-[#111827]">{assignedTasksCount}</div>
-              <div className="text-xs text-[#6B7280]">Assigned Tasks</div>
+              <div className="text-lg font-extrabold text-heading">{assignedTasksCount}</div>
+              <div className="text-xs text-gold-800">Assigned Tasks</div>
             </div>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-xl border border-[#E5E7EB] flex items-center gap-3">
-            <div className="p-2 bg-emerald-100/70 text-emerald-700 rounded-lg">
-              <CheckCircle2 className="h-5 w-5" />
+          <div className="bg-gold-50/60 p-4 rounded-xl border border-gold-200 flex items-center gap-3">
+            <div className="p-2.5 bg-gold-200 text-black border border-gold-300 rounded-lg">
+              <CheckCircle2 className="h-5 w-5 text-gold-800" />
             </div>
             <div>
-              <div className="text-lg font-bold text-[#111827]">{completedTasksCount}</div>
-              <div className="text-xs text-[#6B7280]">Completed Tasks</div>
+              <div className="text-lg font-extrabold text-heading">{completedTasksCount}</div>
+              <div className="text-xs text-gold-800">Completed Tasks</div>
             </div>
           </div>
         </div>
@@ -131,25 +131,25 @@ export const ProfilePage: React.FC = () => {
 
       {/* Role Permissions Matrix */}
       {user?.role !== 'CLIENT' && (
-        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-xs p-6 space-y-4">
-          <h3 className="text-sm font-bold text-[#111827] flex items-center gap-2">
-            <Shield className="h-4 w-4 text-indigo-600" />
+        <div className="bg-card rounded-xl border border-gold-200 shadow-xs p-6 space-y-4">
+          <h3 className="text-sm font-bold text-heading flex items-center gap-2">
+            <Shield className="h-4 w-4 text-gold-600" />
             Role Permissions Matrix
           </h3>
 
-          <div className="divide-y divide-[#E5E7EB]">
+          <div className="divide-y divide-gold-100">
             {permissionsList.map((perm) => (
               <div
                 key={perm.name}
-                className="py-3 flex items-center justify-between text-xs text-[#374151]"
+                className="py-3 flex items-center justify-between text-xs text-heading font-medium"
               >
                 <span>{perm.name}</span>
                 {perm.allowed ? (
-                  <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                  <span className="px-2.5 py-0.5 rounded-full bg-gold-200 text-black font-bold border border-gold-400">
                     Granted
                   </span>
                 ) : (
-                  <span className="px-2 py-0.5 rounded-md bg-gray-100 text-[#9CA3AF] font-medium border border-gray-200">
+                  <span className="px-2.5 py-0.5 rounded-full bg-gold-50 text-gold-700/60 font-medium border border-gold-200">
                     Restricted
                   </span>
                 )}

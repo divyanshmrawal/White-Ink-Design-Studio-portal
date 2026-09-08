@@ -87,7 +87,7 @@ export const TeamAttendanceView: React.FC<TeamAttendanceViewProps> = ({ teamMemb
         <div className="bg-white p-4 rounded-xl border border-gold-300 shadow-sm">
           <div className="flex items-center justify-between text-xs text-black/70 font-bold mb-1">
             <span>Completed Shift</span>
-            <CheckCircle2 className="h-4 w-4 text-emerald-700 stroke-[2.5]" />
+            <CheckCircle2 className="h-4 w-4 text-gold-700 stroke-[2.5]" />
           </div>
           <div className="text-2xl font-extrabold text-black">{shiftCompleted.length}</div>
           <div className="text-[11px] text-black/60 font-semibold mt-1">Clocked out today</div>

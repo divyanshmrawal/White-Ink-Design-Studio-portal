@@ -107,3 +107,41 @@
 .btn-hover-lift:active {
   transform: translateY(0);
 }
+
+/* =============================
+   Semantic Theme Utilities
+   ============================= */
+@layer utilities {
+  /* Page background */
+  .bg-page { @apply bg-gold-50; }
+  /* Card / surface background */
+  .bg-card { @apply bg-white; }
+  /* Primary accent colors */
+  .text-primary { @apply text-gold-500; }
+  .bg-primary { @apply bg-gold-500; }
+  .border-primary { @apply border-gold-500; }
+  .hover-primary:hover { @apply text-gold-600 bg-gold-100; }
+  /* Heading (black) */
+  .text-heading { color: #0A0A0A; }
+  /* Body text */
+  .text-body { color: #1A1A1A; }
+  /* Muted text */
+  .text-muted { @apply text-gold-700; }
+  /* Button primary */
+  .btn-primary { @apply bg-gold-500 text-white hover:bg-gold-600; }
+  .primary-cta { @apply bg-gold-500 text-white hover:bg-gold-600; }
+  .border-subtle { @apply border-gold-200; }
+  .card-surface { @apply bg-white border border-gold-200 shadow-sm rounded-xl; }
+}
+
+/* =============================
+   Typography Scale Utilities
+   ============================= */
+@layer utilities {
+  .title { @apply text-4xl font-bold text-[#0A0A0A]; }
+  .section-heading { @apply text-2xl font-semibold text-[#0A0A0A]; }
+  .body { @apply text-base text-[#1A1A1A]; }
+  .muted { @apply text-sm text-gold-700; }
+  .table-header { @apply text-sm font-medium text-[#0A0A0A]; }
+  .form-label { @apply text-sm font-medium text-[#0A0A0A]; }
+}

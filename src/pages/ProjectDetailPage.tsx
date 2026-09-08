@@ -511,7 +511,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         )}
 
                         {task.clientApprovalStatus === 'APPROVED' && (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-black bg-gold-200 border border-gold-400 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
                             Client Approved
                           </span>
                         )}
@@ -539,7 +539,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                         )}
 
                         {task.clientApprovalStatus === 'APPROVED' && (
-                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
+                          <span className="text-[11px] font-bold text-black bg-gold-200 border border-gold-400 rounded-lg px-2.5 py-1.5 whitespace-nowrap">
                             Client Approved
                           </span>
                         )}
@@ -621,7 +621,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                     <span
                       className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
                         m.status === 'COMPLETED'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          ? 'bg-gold-200 text-black border-gold-400'
                           : m.status === 'DELAYED'
                           ? 'bg-rose-50 text-rose-800 border-rose-300'
                           : 'bg-gold-100 text-black border-gold-400'
@@ -685,7 +685,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
                     <span
                       className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
                         a.status === 'APPROVED'
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                          ? 'bg-gold-200 text-black border-gold-400'
                           : a.status === 'REJECTED'
                           ? 'bg-rose-50 text-rose-800 border-rose-300'
                           : 'bg-gold-100 text-black border-gold-400'

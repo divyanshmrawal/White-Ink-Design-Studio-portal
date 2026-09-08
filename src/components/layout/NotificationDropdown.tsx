@@ -107,25 +107,25 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onNa
     switch (type) {
       case 'APPROVAL_REQUESTED':
       case 'APPROVAL_RESOLVED':
-        return <FileCheck className="h-4 w-4 text-amber-600" />;
+        return <FileCheck className="h-4 w-4 text-gold-700" />;
       case 'TASK_ASSIGNED':
       case 'TASK_STATUS':
-        return <CheckCircle className="h-4 w-4 text-indigo-600" />;
+        return <CheckCircle className="h-4 w-4 text-gold-600" />;
       case 'PROJECT_ASSIGNED':
-        return <FolderKanban className="h-4 w-4 text-blue-600" />;
+        return <FolderKanban className="h-4 w-4 text-gold-800" />;
       case 'MILESTONE_DUE':
-        return <AlertTriangle className="h-4 w-4 text-rose-600" />;
+        return <AlertTriangle className="h-4 w-4 text-gold-600" />;
       case 'ATTENDANCE_ALERT':
-        return <Clock className="h-4 w-4 text-emerald-600" />;
+        return <Clock className="h-4 w-4 text-gold-700" />;
       case 'LEAVE_REQUESTED':
       case 'LEAVE_RESOLVED':
-        return <Calendar className="h-4 w-4 text-purple-600" />;
+        return <Calendar className="h-4 w-4 text-gold-800" />;
       case 'PERFORMANCE_REVIEW':
-        return <Award className="h-4 w-4 text-teal-600" />;
+        return <Award className="h-4 w-4 text-gold-600" />;
       case 'CHAT_MENTION':
-        return <MessageSquare className="h-4 w-4 text-sky-600" />;
+        return <MessageSquare className="h-4 w-4 text-gold-700" />;
       default:
-        return <Bell className="h-4 w-4 text-gray-600" />;
+        return <Bell className="h-4 w-4 text-gold-600" />;
     }
   };
 
