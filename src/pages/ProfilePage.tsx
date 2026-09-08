@@ -37,6 +37,8 @@ export const ProfilePage: React.FC = () => {
         return 'Studio manager permissions allowing project initiation, task delegation, client collaboration, and milestone sign-offs.';
       case 'TEAM_MEMBER':
         return 'Architectural and interior design studio access. View assigned projects, track tasks, update deliverables, and log attendance.';
+      case 'CLIENT_ADMIN':
+        return 'Client administrator portal. Manage your company team members, oversee contracted design projects, review drawings, and approve deliverables.';
       case 'CLIENT':
         return 'External client stakeholder portal. Monitor linked design stages, review drawings and specification packages, and approve project phases.';
       default:
@@ -47,11 +49,11 @@ export const ProfilePage: React.FC = () => {
   const permissionsList = [
     { name: 'View Dashboard & Analytics', allowed: true },
     { name: 'Create & Manage Projects', allowed: user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' },
-    { name: 'Create & Manage Tasks', allowed: user?.role !== 'CLIENT' },
-    { name: 'Update Task Progress & Move Kanban', allowed: user?.role !== 'CLIENT' },
+    { name: 'Create & Manage Tasks', allowed: user?.role !== 'CLIENT' && user?.role !== 'CLIENT_ADMIN' },
+    { name: 'Update Task Progress & Move Kanban', allowed: user?.role !== 'CLIENT' && user?.role !== 'CLIENT_ADMIN' },
     { name: 'Post Comments in Projects', allowed: true },
     { name: 'Manage Client Accounts', allowed: user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' },
-    { name: 'Manage User Accounts & Roles', allowed: user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' },
+    { name: 'Manage User Accounts & Roles', allowed: user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'CLIENT_ADMIN' },
   ];
 
   return (

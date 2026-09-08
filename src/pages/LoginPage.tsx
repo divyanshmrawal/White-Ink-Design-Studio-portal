@@ -45,8 +45,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
     { email: 'alex@planforge.io', password: 'Admin@123', role: 'SUPER_ADMIN', name: 'Alex Vance', title: 'Super Admin' },
     { email: 'sarah@planforge.io', password: 'Admin@123', role: 'ADMIN', name: 'Sarah Connor', title: 'Project Manager' },
     { email: 'david@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', name: 'David Kim', title: 'Lead Engineer' },
-    { email: 'elena@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', name: 'Elena Rostova', title: 'UI/UX Designer' },
-    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT', name: 'Jonathan Sterling', title: 'Acme Client' },
+    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT_ADMIN', name: 'Jonathan Sterling', title: 'Acme Client Admin' },
+    { email: 'rachel@acmecorp.com', password: 'Client@123', role: 'CLIENT', name: 'Rachel Green', title: 'Acme Client Member' },
   ];
 
   return (
@@ -146,7 +146,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
                 onClick={onNavigateToRegister}
                 className="text-black font-extrabold hover:text-gold-700 underline cursor-pointer"
               >
-                Register as Member or Client
+                Register your company
               </button>
             </p>
           </div>

@@ -4,10 +4,10 @@ import { requireAuth, requireRoles, AuthenticatedRequest } from '../auth.ts';
 
 export const attendanceRouter = Router();
 
-// Global rule: All attendance endpoints require authentication and CLIENT role is strictly forbidden
+// Global rule: All attendance endpoints require authentication and CLIENT and CLIENT_ADMIN roles are strictly forbidden
 attendanceRouter.use(requireAuth);
 attendanceRouter.use((req: AuthenticatedRequest, res: Response, next) => {
-  if (req.user?.role === 'CLIENT') {
+  if (req.user?.role === 'CLIENT' || req.user?.role === 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Forbidden: Clients do not have access to attendance management.' });
   }
   next();

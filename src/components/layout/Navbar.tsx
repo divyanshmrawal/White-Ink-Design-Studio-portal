@@ -19,8 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onNavigate }) =
     { email: 'alex@planforge.io', password: 'Admin@123', role: 'SUPER_ADMIN', label: 'Alex Vance (Super Admin)' },
     { email: 'sarah@planforge.io', password: 'Admin@123', role: 'ADMIN', label: 'Sarah Connor (Admin)' },
     { email: 'david@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', label: 'David Kim (Dev)' },
-    { email: 'elena@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', label: 'Elena Rostova (Designer)' },
-    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT', label: 'Jonathan Sterling (Client)' },
+    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT_ADMIN', label: 'Jonathan Sterling (Client Admin)' },
+    { email: 'rachel@acmecorp.com', password: 'Client@123', role: 'CLIENT', label: 'Rachel Green (Client Member)' },
   ];
 
   const handleResetData = async () => {
@@ -38,9 +38,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onNavigate }) =
   };
 
   const roleBadgeMap: Record<string, string> = {
-    SUPER_ADMIN: 'bg-gold-200 text-black border-gold-400 font-semibold',
-    ADMIN: 'bg-gold-100 text-black border-gold-300 font-semibold',
+    SUPER_ADMIN: 'bg-black text-gold-400 border-gold-600 font-semibold',
+    ADMIN: 'bg-gold-200 text-black border-gold-400 font-semibold',
     TEAM_MEMBER: 'bg-white text-black border-gold-300 font-medium',
+    CLIENT_ADMIN: 'bg-gold-300 text-black border-gold-500 font-bold',
     CLIENT: 'bg-gold-50 text-black border-gold-300 font-medium',
   };
 

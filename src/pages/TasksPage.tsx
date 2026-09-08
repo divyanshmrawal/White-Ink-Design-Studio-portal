@@ -49,7 +49,8 @@ export const TasksPage: React.FC<TasksPageProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [submitTask, setSubmitTask] = useState<Task | null>(null);
 
-  const canManage = user?.role !== 'CLIENT';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
+  const canManage = !isClient;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -169,7 +170,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
             <option value="COMPLETED">Completed</option>
           </select>
 
-          {user?.role !== 'CLIENT' && (
+          {!isClient && (
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
@@ -190,7 +191,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
           >
             <option value="ALL">All Assignees</option>
             {users
-              .filter((u) => u.role !== 'CLIENT')
+              .filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN')
               .map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -224,7 +225,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
               {/* Task Details */}
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  {user?.role !== 'CLIENT' && <PriorityBadge priority={task.priority} size="sm" />}
+                  {!isClient && <PriorityBadge priority={task.priority} size="sm" />}
                   <span className="text-xs font-bold text-black">
                     {task.project?.name || 'Project'}
                   </span>
@@ -258,7 +259,7 @@ export const TasksPage: React.FC<TasksPageProps> = ({
                   <ProgressBar progress={task.progress} size="sm" showLabel={false} />
                 </div>
 
-                {user?.role === 'CLIENT' ? (
+                {isClient ? (
                   <StatusBadge status={task.status} size="sm" />
                 ) : user?.role === 'TEAM_MEMBER' ? (
                   <div className="flex items-center gap-2">

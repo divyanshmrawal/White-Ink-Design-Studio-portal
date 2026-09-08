@@ -19,12 +19,27 @@ export const UserModal: React.FC<UserModalProps> = ({
 }) => {
   const { user: currentUser } = useAuth();
   const isEditing = Boolean(user);
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+
+  const getAllowedRoles = (): Role[] => {
+    switch (currentUser?.role) {
+      case 'SUPER_ADMIN':
+        return ['ADMIN', 'CLIENT_ADMIN'];
+      case 'ADMIN':
+        return ['TEAM_MEMBER'];
+      case 'CLIENT_ADMIN':
+        return ['CLIENT'];
+      default:
+        return [];
+    }
+  };
+
+  const allowedRoles = getAllowedRoles();
+  const defaultRole = allowedRoles[0] || 'TEAM_MEMBER';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('TEAM_MEMBER');
+  const [role, setRole] = useState<Role>(defaultRole);
   const [profileImage, setProfileImage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,17 +49,17 @@ export const UserModal: React.FC<UserModalProps> = ({
       setName(user.name || '');
       setEmail(user.email || '');
       setPassword('');
-      setRole(user.role || 'TEAM_MEMBER');
+      setRole(user.role || defaultRole);
       setProfileImage(user.profileImage || '');
     } else {
       setName('');
       setEmail('');
       setPassword('');
-      setRole('TEAM_MEMBER');
+      setRole(defaultRole);
       setProfileImage('');
     }
     setError(null);
-  }, [user, isOpen]);
+  }, [user, isOpen, defaultRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,12 +107,33 @@ export const UserModal: React.FC<UserModalProps> = ({
     }
   };
 
+  const getRoleLabel = (r: Role) => {
+    switch (r) {
+      case 'ADMIN':
+        return 'ADMIN (Internal Company Admin)';
+      case 'CLIENT_ADMIN':
+        return 'CLIENT ADMIN (Client Company Admin)';
+      case 'TEAM_MEMBER':
+        return 'TEAM MEMBER (Internal Staff)';
+      case 'CLIENT':
+        return 'CLIENT (Client Company Member)';
+      default:
+        return r;
+    }
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditing ? 'Edit User Account' : 'Add New System User'}
-      subtitle={isEditing ? 'Update user credentials and authorization roles' : 'Create an internal team member, manager, or client login'}
+      title={isEditing ? 'Edit User Account' : currentUser?.role === 'CLIENT_ADMIN' ? 'Add Company Team Member' : 'Add New User'}
+      subtitle={
+        isEditing
+          ? 'Update user credentials and profile details'
+          : currentUser?.role === 'CLIENT_ADMIN'
+          ? 'Add a member to your client company team'
+          : 'Create an authorized system user account'
+      }
       maxWidth="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -156,12 +192,14 @@ export const UserModal: React.FC<UserModalProps> = ({
           <select
             value={role}
             onChange={(e) => setRole(e.target.value as Role)}
-            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer"
+            disabled={allowedRoles.length <= 1}
+            className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           >
-            {isSuperAdmin && <option value="SUPER_ADMIN">SUPER ADMIN (Full root access)</option>}
-            <option value="ADMIN">ADMIN (Project & Team management)</option>
-            <option value="TEAM_MEMBER">TEAM MEMBER (Assigned projects & tasks)</option>
-            <option value="CLIENT">CLIENT (External viewer)</option>
+            {allowedRoles.map((r) => (
+              <option key={r} value={r}>
+                {getRoleLabel(r)}
+              </option>
+            ))}
           </select>
         </div>
 

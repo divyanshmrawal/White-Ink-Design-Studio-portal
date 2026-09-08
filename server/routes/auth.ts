@@ -7,7 +7,7 @@ export const authRouter = Router();
 // POST /api/auth/register
 authRouter.post('/register', async (req, res) => {
   try {
-    const { name, email, password, confirmPassword, role } = req.body;
+    const { name, email, password, confirmPassword, companyName } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required.' });
@@ -21,51 +21,41 @@ authRouter.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
     }
 
-    // Disallow self-registering as SUPER_ADMIN
-    let assignedRole: Role = 'TEAM_MEMBER';
-    if (role === 'CLIENT') {
-      assignedRole = 'CLIENT';
-    } else if (role === 'SUPER_ADMIN') {
-      return res.status(403).json({ message: 'Self-registration as SUPER_ADMIN is strictly prohibited.' });
-    } else if (role === 'ADMIN') {
-      return res.status(403).json({ message: 'Self-registration as ADMIN requires administrator approval.' });
-    }
-
-    const existingUser = db.getUserByEmail(email);
+    const cleanEmail = email.trim().toLowerCase();
+    const existingUser = db.getUserByEmail(cleanEmail);
     if (existingUser) {
       return res.status(409).json({ message: 'A user with this email address already exists.' });
     }
 
+    // Public registration creates a new Client company and its primary CLIENT_ADMIN user
+    const clientId = `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const orgName = companyName && companyName.trim() ? companyName.trim() : `${name.trim()}'s Company`;
+
+    db.createClient({
+      id: clientId,
+      name: name.trim(),
+      company: orgName,
+      email: cleanEmail,
+    });
+
     const passwordHash = await hashPassword(password);
     const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    
+
     const newUser = db.createUser({
       id: userId,
       name: name.trim(),
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       passwordHash,
-      role: assignedRole,
+      role: 'CLIENT_ADMIN',
+      clientId,
       profileImage: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
     });
-
-    // If registered as client, auto-create a Client record if one doesn't exist
-    if (assignedRole === 'CLIENT') {
-      const existingClient = db.getClientByEmail(email);
-      if (!existingClient) {
-        db.createClient({
-          id: `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          name: name.trim(),
-          company: `${name.trim()}'s Organization`,
-          email: email.trim().toLowerCase(),
-        });
-      }
-    }
 
     const token = generateToken(newUser);
     return res.status(201).json({
       token,
       user: sanitizeUser(newUser),
-      message: 'Account registered successfully.',
+      message: 'Company and administrator account registered successfully.',
     });
   } catch (error: any) {
     console.error('Registration error:', error);

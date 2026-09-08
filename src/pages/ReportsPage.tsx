@@ -23,7 +23,7 @@ interface ReportsPageProps {
 export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const role = user?.role || 'TEAM_MEMBER';
-  const isClient = role === 'CLIENT';
+  const isClient = role === 'CLIENT' || role === 'CLIENT_ADMIN';
 
   const [reports, setReports] = useState<ReportsOverview | null>(null);
   const [teamWorkload, setTeamWorkload] = useState<TeamMemberWorkload[]>([]);

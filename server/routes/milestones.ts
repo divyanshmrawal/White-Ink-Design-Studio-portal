@@ -11,10 +11,10 @@ milestonesRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response
 
   let allMilestones = db.getMilestones();
 
-  // Role scoping: Clients only see milestones of their projects
-  if (currentUser.role === 'CLIENT') {
+  // Role scoping: Clients and Client Admins only see milestones of their projects
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const matchingClients = db.getClients().filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(matchingClients.map((c) => c.id));
     const allowedProjectIds = new Set(
@@ -128,8 +128,8 @@ milestonesRouter.put(
       return res.status(404).json({ message: 'Milestone not found.' });
     }
 
-    // Clients cannot edit milestones
-    if (currentUser.role === 'CLIENT') {
+    // Clients and Client Admins cannot edit milestones
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Forbidden: Clients cannot modify milestones.' });
     }
 

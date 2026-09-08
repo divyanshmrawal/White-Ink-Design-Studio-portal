@@ -40,7 +40,8 @@ export const KanbanPage: React.FC = () => {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const canManage = user?.role !== 'CLIENT';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
+  const canManage = !isClient;
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -189,7 +190,7 @@ export const KanbanPage: React.FC = () => {
         >
           <option value="ALL">All Assignees</option>
           {users
-            .filter((u) => u.role !== 'CLIENT')
+            .filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN')
             .map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
@@ -264,7 +265,7 @@ export const KanbanPage: React.FC = () => {
                         >
                           {/* Priority & Actions */}
                           <div className="flex items-center justify-between gap-1">
-                            {user?.role !== 'CLIENT' ? (
+                            {!isClient ? (
                               <PriorityBadge priority={task.priority} size="sm" />
                             ) : (
                               <div />

@@ -39,6 +39,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const role = user?.role || 'TEAM_MEMBER';
 
   const isSuperAdminOrAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+  const isClient = role === 'CLIENT' || role === 'CLIENT_ADMIN';
+  const isInternalStaff = !isClient;
 
   interface NavItem {
     name: string;
@@ -103,14 +105,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Attendance',
       path: '/attendance',
       icon: Clock,
-      show: role !== 'CLIENT',
+      show: isInternalStaff,
       category: 'GENERAL',
     },
     {
       name: 'Leaves & Time Off',
       path: '/leaves',
       icon: CalendarDays,
-      show: role !== 'CLIENT',
+      show: isInternalStaff,
       category: 'GENERAL',
     },
     {
@@ -124,15 +126,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Performance Reviews',
       path: '/performance',
       icon: Award,
-      show: role !== 'CLIENT',
+      show: isInternalStaff,
       category: 'GENERAL',
     },
     {
       name: 'Reports & Analytics',
       path: '/reports',
       icon: BarChart3,
-      show: role !== 'CLIENT',
+      show: isInternalStaff,
       category: 'GENERAL',
+    },
+    {
+      name: 'Company Team',
+      path: '/users',
+      icon: Users,
+      badge: 'Admin',
+      show: role === 'CLIENT_ADMIN',
+      category: 'MANAGEMENT',
     },
     {
       name: 'Clients',
@@ -177,7 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Account Settings',
       path: '/client-settings',
       icon: Settings,
-      show: role === 'CLIENT',
+      show: isClient,
       category: 'ACCOUNT',
     },
     {

@@ -33,7 +33,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser }) =
 
   const isAdminOrSuperAdmin =
     currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN';
-  const isClient = currentUser?.role === 'CLIENT';
+  const isClient = currentUser?.role === 'CLIENT' || currentUser?.role === 'CLIENT_ADMIN';
 
   const fetchAttendanceData = async () => {
     if (isClient) return;
@@ -54,7 +54,7 @@ export const AttendancePage: React.FC<AttendancePageProps> = ({ currentUser }) =
       // If admin, fetch users for team filter
       if (isAdminOrSuperAdmin) {
         const users = await api.getUsers();
-        setTeamMembers(users.filter((u) => u.role !== 'CLIENT'));
+        setTeamMembers(users.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN'));
       }
     } catch (err) {
       console.error('Failed to load attendance data:', err);

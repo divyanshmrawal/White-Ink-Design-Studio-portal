@@ -30,8 +30,8 @@ interface ApprovalsPageProps {
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ onNavigate }) => {
   const { user } = useAuth();
   const role = user?.role || 'TEAM_MEMBER';
-  const isClient = role === 'CLIENT';
-  const canRequestApproval = role !== 'CLIENT';
+  const isClient = role === 'CLIENT' || role === 'CLIENT_ADMIN';
+  const canRequestApproval = !isClient;
   const canDelete = role === 'SUPER_ADMIN' || role === 'ADMIN';
 
   const [approvals, setApprovals] = useState<ClientApproval[]>([]);

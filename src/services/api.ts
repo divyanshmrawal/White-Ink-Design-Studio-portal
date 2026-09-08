@@ -55,7 +55,7 @@ export const api = {
       body: JSON.stringify(credentials),
     }),
 
-  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; role?: string }) =>
+  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; companyName?: string }) =>
     request<{ token: string; user: User; message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -80,13 +80,13 @@ export const api = {
 
   getUserById: (id: string) => request<User>(`/users/${id}`),
 
-  createUser: (payload: { name: string; email: string; password: string; role: Role; profileImage?: string }) =>
+  createUser: (payload: { name: string; email: string; password: string; role: Role; profileImage?: string; clientId?: string | null }) =>
     request<User>('/users', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
 
-  updateUser: (id: string, payload: Partial<{ name: string; email: string; password: string; role: Role; profileImage?: string }>) =>
+  updateUser: (id: string, payload: Partial<{ name: string; email: string; password: string; role: Role; profileImage?: string; clientId?: string | null }>) =>
     request<User>(`/users/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(payload),

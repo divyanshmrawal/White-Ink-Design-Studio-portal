@@ -5,9 +5,9 @@ import { requireAuth, AuthenticatedRequest } from '../auth.ts';
 
 export const reportsRouter = Router();
 
-// Reports are forbidden for CLIENT role
+// Reports are forbidden for CLIENT and CLIENT_ADMIN roles
 reportsRouter.use(requireAuth, (req: AuthenticatedRequest, res: Response, next) => {
-  if (req.user?.role === 'CLIENT') {
+  if (req.user?.role === 'CLIENT' || req.user?.role === 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Forbidden: Reports access restricted.' });
   }
   next();

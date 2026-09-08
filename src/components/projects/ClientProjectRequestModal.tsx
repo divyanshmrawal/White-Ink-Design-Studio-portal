@@ -69,7 +69,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
 
       api.getUsers()
         .then((users) => {
-          const internal = users.filter((u) => u.role !== 'CLIENT');
+          const internal = users.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN');
           setTeamMembers(internal);
           if (internal.length > 0) setLeadOwnerId(internal[0].id);
         })

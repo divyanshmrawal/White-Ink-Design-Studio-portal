@@ -53,8 +53,36 @@ export async function getSeedData() {
       name: 'Jonathan Sterling',
       email: 'jonathan@acmecorp.com',
       passwordHash: clientPasswordHash,
-      role: 'CLIENT' as Role,
+      role: 'CLIENT_ADMIN' as Role,
+      clientId: 'cli_acme_01',
       profileImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'usr_client_07',
+      name: 'Rachel Green',
+      email: 'rachel@acmecorp.com',
+      passwordHash: clientPasswordHash,
+      role: 'CLIENT' as Role,
+      clientId: 'cli_acme_01',
+      profileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'usr_client_08',
+      name: 'Hank Scorpio',
+      email: 'hank@globex.com',
+      passwordHash: clientPasswordHash,
+      role: 'CLIENT_ADMIN' as Role,
+      clientId: 'cli_globex_02',
+      profileImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    },
+    {
+      id: 'usr_client_09',
+      name: 'Homer Simpson',
+      email: 'homer@globex.com',
+      passwordHash: clientPasswordHash,
+      role: 'CLIENT' as Role,
+      clientId: 'cli_globex_02',
+      profileImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
     },
   ];
 
@@ -497,8 +525,8 @@ export async function runSeed() {
     await prisma.task.deleteMany();
     await prisma.projectMember.deleteMany();
     await prisma.project.deleteMany();
-    await prisma.client.deleteMany();
     await prisma.user.deleteMany();
+    await prisma.client.deleteMany();
     await prisma.systemSettings.deleteMany();
   } catch (e) {
     console.warn('Prisma cleanup note:', e);
@@ -511,12 +539,12 @@ export async function runSeed() {
     console.warn('Seed settings note:', e);
   }
 
-  // Insert users & clients
-  for (const u of seed.users) {
-    await prisma.user.create({ data: u });
-  }
+  // Insert clients before users so User.clientId foreign keys are valid
   for (const c of seed.clients) {
     await prisma.client.create({ data: c });
+  }
+  for (const u of seed.users) {
+    await prisma.user.create({ data: u });
   }
   for (const p of seed.projects) {
     await prisma.project.create({

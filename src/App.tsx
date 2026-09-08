@@ -124,7 +124,7 @@ function MainApp() {
           ) : currentPath === '/approvals' ? (
             <ApprovalsPage onNavigate={navigate} />
           ) : currentPath === '/reports' ? (
-            user.role === 'CLIENT' ? (
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
               <DashboardPage
                 onNavigate={navigate}
                 onOpenNewProject={() => setIsQuickProjectOpen(true)}
@@ -135,9 +135,18 @@ function MainApp() {
               <ReportsPage onNavigate={navigate} />
             )
           ) : currentPath === '/team' ? (
-            <TeamPage onNavigate={navigate} />
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
+              <TeamPage onNavigate={navigate} />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : currentPath === '/clients' ? (
-            user.role === 'CLIENT' ? (
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
               <DashboardPage
                 onNavigate={navigate}
                 onOpenNewProject={() => setIsQuickProjectOpen(true)}
@@ -148,7 +157,7 @@ function MainApp() {
               <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
             )
           ) : currentPath === '/client-settings' ? (
-            user.role === 'CLIENT' ? (
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
               <ClientSettingsPage />
             ) : (
               <DashboardPage
@@ -159,23 +168,77 @@ function MainApp() {
               />
             )
           ) : currentPath === '/users' ? (
-            <UsersPage />
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CLIENT_ADMIN' ? (
+              <UsersPage />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : currentPath === '/profile' ? (
             <ProfilePage />
           ) : currentPath === '/attendance' ? (
-            <AttendancePage currentUser={user} />
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            ) : (
+              <AttendancePage currentUser={user} />
+            )
           ) : currentPath === '/leaves' ? (
-            <LeavesPage />
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            ) : (
+              <LeavesPage />
+            )
           ) : currentPath === '/sops' ? (
             <SOPPage />
           ) : currentPath === '/performance' ? (
-            <PerformancePage />
+            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            ) : (
+              <PerformancePage />
+            )
           ) : currentPath === '/activities' ? (
-            <ActivitiesPage />
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
+              <ActivitiesPage />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : currentPath === '/chat' ? (
             <ChatPage />
           ) : currentPath === '/settings' ? (
-            <AdminSettingsPage />
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
+              <AdminSettingsPage />
+            ) : (
+              <DashboardPage
+                onNavigate={navigate}
+                onOpenNewProject={() => setIsQuickProjectOpen(true)}
+                onOpenClientProject={() => setIsClientProjectOpen(true)}
+                onOpenNewTask={() => setIsQuickTaskOpen(true)}
+              />
+            )
           ) : (
             <DashboardPage
               onNavigate={navigate}
@@ -196,7 +259,7 @@ function MainApp() {
           navigate('/projects');
         }}
         clients={clients}
-        teamMembers={users.filter((u) => u.role !== 'CLIENT')}
+        teamMembers={users.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN')}
       />
 
       <ClientProjectRequestModal

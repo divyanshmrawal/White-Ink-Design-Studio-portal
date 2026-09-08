@@ -86,7 +86,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [selectedNewMemberId, setSelectedNewMemberId] = useState('');
 
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-  const isClient = user?.role === 'CLIENT';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
 
   const loadProjectDetails = useCallback(async () => {
     setIsLoading(true);
@@ -209,7 +209,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   // Find users not yet members of this project
   const currentMemberIds = new Set(project.members?.map((m) => m.id) || []);
   const availableUsersToAdd = allUsers.filter(
-    (u) => !currentMemberIds.has(u.id) && u.role !== 'CLIENT'
+    (u) => !currentMemberIds.has(u.id) && u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN'
   );
 
   return (
@@ -884,7 +884,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
         onSuccess={loadProjectDetails}
         project={project}
         clients={clients}
-        teamMembers={allUsers.filter((u) => u.role !== 'CLIENT')}
+        teamMembers={allUsers.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN')}
       />
 
       {/* Task Modal */}

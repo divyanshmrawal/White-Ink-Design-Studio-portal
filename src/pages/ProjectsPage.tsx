@@ -52,6 +52,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -63,7 +64,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       ]);
       setProjects(projectsData);
       setClients(clientsData);
-      setTeamMembers(usersData.filter((u) => u.role !== 'CLIENT'));
+      setTeamMembers(usersData.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN'));
     } catch (err) {
       console.error('Failed to load projects:', err);
     } finally {
@@ -114,7 +115,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           </button>
         )}
 
-        {user?.role === 'CLIENT' && (
+        {isClient && (
           <button
             type="button"
             onClick={() => setIsClientModalOpen(true)}
@@ -178,12 +179,12 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           title="No projects found"
           description="No projects match your current filters. Create a new project to start tracking work."
           icon={FolderKanban}
-          actionLabel={canManage ? 'Create Project' : user?.role === 'CLIENT' ? 'Create New Project' : undefined}
+          actionLabel={canManage ? 'Create Project' : isClient ? 'Create New Project' : undefined}
           onAction={() => {
             if (canManage) {
               setEditingProject(null);
               setIsModalOpen(true);
-            } else if (user?.role === 'CLIENT') {
+            } else if (isClient) {
               setIsClientModalOpen(true);
             }
           }}
@@ -200,7 +201,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5">
                     <StatusBadge status={project.status} size="sm" />
-                    {user?.role !== 'CLIENT' && <PriorityBadge priority={project.priority} size="sm" />}
+                    {!isClient && <PriorityBadge priority={project.priority} size="sm" />}
                   </div>
 
                   {canManage && (

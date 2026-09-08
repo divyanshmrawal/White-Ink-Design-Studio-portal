@@ -44,6 +44,22 @@ export const UsersPage: React.FC = () => {
     loadUsers();
   }, [loadUsers]);
 
+  const canEdit = (target: User) => {
+    if (currentUser?.id === target.id) return true;
+    if (currentUser?.role === 'SUPER_ADMIN') return target.role === 'ADMIN' || target.role === 'CLIENT_ADMIN';
+    if (currentUser?.role === 'ADMIN') return target.role === 'TEAM_MEMBER';
+    if (currentUser?.role === 'CLIENT_ADMIN') return target.role === 'CLIENT' && target.clientId === currentUser.clientId;
+    return false;
+  };
+
+  const canDelete = (target: User) => {
+    if (currentUser?.id === target.id) return false;
+    if (currentUser?.role === 'SUPER_ADMIN') return target.role === 'ADMIN' || target.role === 'CLIENT_ADMIN';
+    if (currentUser?.role === 'ADMIN') return target.role === 'TEAM_MEMBER';
+    if (currentUser?.role === 'CLIENT_ADMIN') return target.role === 'CLIENT' && target.clientId === currentUser.clientId;
+    return false;
+  };
+
   const handleDeleteUser = async () => {
     if (!deletingUser) return;
     setIsDeleting(true);
@@ -78,6 +94,12 @@ export const UsersPage: React.FC = () => {
             Team Member
           </span>
         );
+      case 'CLIENT_ADMIN':
+        return (
+          <span className="px-2.5 py-0.5 text-xs font-bold rounded-full bg-gold-400 text-black border border-gold-600 shadow-2xs">
+            Client Admin
+          </span>
+        );
       case 'CLIENT':
         return (
           <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-white text-black border border-gold-300">
@@ -92,9 +114,13 @@ export const UsersPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="section-heading text-heading">User Management</h1>
+          <h1 className="section-heading text-heading">
+            {currentUser?.role === 'CLIENT_ADMIN' ? 'Company Team' : 'User Management'}
+          </h1>
           <p className="muted mt-1">
-            Manage system access credentials, role-based authorizations, and staff profiles
+            {currentUser?.role === 'CLIENT_ADMIN'
+              ? 'Manage company team members and their client portal access'
+              : 'Manage system access credentials, role-based authorizations, and staff profiles'}
           </p>
         </div>
 
@@ -107,7 +133,7 @@ export const UsersPage: React.FC = () => {
           className="btn-primary btn-hover-lift inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="h-4 w-4" />
-          Add User
+          {currentUser?.role === 'CLIENT_ADMIN' ? 'Add Team Member' : 'Add User'}
         </button>
       </div>
 
@@ -130,9 +156,14 @@ export const UsersPage: React.FC = () => {
           className="w-full sm:w-auto px-3 py-1.5 text-xs font-medium bg-gold-50/50 border border-gold-200 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 cursor-pointer"
         >
           <option value="ALL">All Roles</option>
-          <option value="SUPER_ADMIN">Super Admin</option>
-          <option value="ADMIN">Admin</option>
-          <option value="TEAM_MEMBER">Team Member</option>
+          {currentUser?.role !== 'CLIENT_ADMIN' && (
+            <>
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="ADMIN">Admin</option>
+              <option value="TEAM_MEMBER">Team Member</option>
+            </>
+          )}
+          <option value="CLIENT_ADMIN">Client Admin</option>
           <option value="CLIENT">Client</option>
         </select>
       </div>
@@ -143,9 +174,13 @@ export const UsersPage: React.FC = () => {
       ) : users.length === 0 ? (
         <EmptyState
           title="No users found"
-          description="No users matched your query. Add a new user to invite them to the platform."
+          description={
+            currentUser?.role === 'CLIENT_ADMIN'
+              ? 'No team members found for your company. Add team members to invite them.'
+              : 'No users matched your query. Add a new user to invite them to the platform.'
+          }
           icon={Users}
-          actionLabel="Add User"
+          actionLabel={currentUser?.role === 'CLIENT_ADMIN' ? 'Add Team Member' : 'Add User'}
           onAction={() => {
             setEditingUser(null);
             setIsModalOpen(true);
@@ -187,26 +222,29 @@ export const UsersPage: React.FC = () => {
                 {getRoleBadge(u.role)}
 
                 <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingUser(u);
-                      setIsModalOpen(true);
-                    }}
-                    className="p-1.5 text-black/60 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
-                    title="Edit User"
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeletingUser(u)}
-                    disabled={u.id === currentUser?.id}
-                    className="p-1.5 text-black/40 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-black/40 cursor-pointer"
-                    title="Delete User"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {canEdit(u) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingUser(u);
+                        setIsModalOpen(true);
+                      }}
+                      className="p-1.5 text-black/60 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
+                      title="Edit User"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                  )}
+                  {canDelete(u) && (
+                    <button
+                      type="button"
+                      onClick={() => setDeletingUser(u)}
+                      className="p-1.5 text-black/40 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                      title="Delete User"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

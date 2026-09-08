@@ -23,9 +23,9 @@ projectsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) 
   db.recalculateAllProjectProgress();
 
   // Role Scoping
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const matchingClients = db.getClients().filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(matchingClients.map((c) => c.id));
     allProjects = allProjects.filter(
@@ -107,9 +107,9 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
   const client = db.getClientById(project.clientId);
 
   // Scoping check for Client & Team Member
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const isCreator = project.createdById === currentUser.id;
-    const clientMatch = client && (client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
+    const clientMatch = client && ((currentUser.clientId && client.id === currentUser.clientId) || client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
     if (!isCreator && !clientMatch) {
       return res.status(403).json({ message: 'Forbidden: Access to this project is restricted.' });
     }
@@ -211,8 +211,8 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
   });
 });
 
-// POST /api/projects/client-request (CLIENT only)
-projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT']), (req: AuthenticatedRequest, res: Response) => {
+// POST /api/projects/client-request (CLIENT or CLIENT_ADMIN)
+projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLIENT_ADMIN']), (req: AuthenticatedRequest, res: Response) => {
   try {
     const currentUser = req.user!;
     const { name, description, startDate, dueDate, estimatedBudget, leadOwnerId, preferredMeetingTime } = req.body;
@@ -221,10 +221,13 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT']), (r
       return res.status(400).json({ message: 'Project name, description, start date, end date, lead owner, and preferred meeting time are required.' });
     }
 
-    // Resolve or auto-create client record tied directly to this client account
-    let clientRecord = db.getClients().find(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
-    );
+    // Resolve client record tied directly to this client account
+    let clientRecord = currentUser.clientId ? db.getClientById(currentUser.clientId) : null;
+    if (!clientRecord) {
+      clientRecord = db.getClients().find(
+        (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      );
+    }
 
     if (!clientRecord) {
       const existingClientByEmail = db.getClientByEmail(currentUser.email);
@@ -330,7 +333,7 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT']), (r
 projectsRouter.post('/', requireAuth, (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
 
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Clients must use POST /api/projects/client-request to submit project requests.' });
   }
   if (currentUser.role !== 'SUPER_ADMIN' && currentUser.role !== 'ADMIN') {
@@ -509,7 +512,7 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
     const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
 
-    if (!isAdmin && !isMember && currentUser.role !== 'CLIENT') {
+    if (!isAdmin && !isMember && currentUser.role !== 'CLIENT' && currentUser.role !== 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Forbidden: You cannot upload handover documents for this project.' });
     }
 
@@ -670,9 +673,9 @@ projectsRouter.get('/:id/audit-report', requireAuth, (req: AuthenticatedRequest,
     }
 
     // Access check
-    if (currentUser.role === 'CLIENT') {
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       const isCreator = project.createdById === currentUser.id;
-      const clientMatch = client && (client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
+      const clientMatch = client && ((currentUser.clientId && client.id === currentUser.clientId) || client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
       if (!isCreator && !clientMatch) {
         return res.status(403).json({ message: 'Forbidden: Access to this project is restricted.' });
       }

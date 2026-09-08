@@ -56,7 +56,7 @@ export const PerformancePage: React.FC = () => {
         isAdminOrManager ? api.getUsers() : Promise.resolve([]),
       ]);
       setReviews(reviewsData);
-      setUsers(usersData.filter((u) => u.role !== 'CLIENT'));
+      setUsers(usersData.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN'));
     } catch (err) {
       console.error('Error loading performance reviews:', err);
     } finally {

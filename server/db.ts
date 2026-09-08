@@ -2,7 +2,7 @@ import { prisma, isPrismaConfigured } from './prisma.ts';
 import { runSeed, getSeedData } from '../prisma/seed.ts';
 import { sendFcmPushNotification } from './firebase.ts';
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEAM_MEMBER' | 'CLIENT';
+export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEAM_MEMBER' | 'CLIENT' | 'CLIENT_ADMIN';
 export type ProjectStatus = 'PENDING' | 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
 export type ProjectPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED' | 'REVISION_REQUESTED';
@@ -43,6 +43,7 @@ export interface UserRecord {
   role: Role;
   profileImage?: string | null;
   fcmToken?: string | null;
+  clientId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -571,8 +572,36 @@ class DatabaseService {
         })) as PushSubscriptionRecord[],
       };
       this.recalculateAllProjectProgress();
+      this.ensureClientAdmins();
     } catch (e) {
       console.warn('Prisma load skipped or table query failed:', e);
+    }
+  }
+
+  private ensureClientAdmins() {
+    for (const client of this.data.clients) {
+      const clientUsers = this.data.users.filter(
+        (u) => u.clientId === client.id || (u.role === 'CLIENT' && u.email.toLowerCase() === client.email.toLowerCase())
+      );
+      if (clientUsers.length > 0) {
+        let hasAdmin = clientUsers.some((u) => u.role === 'CLIENT_ADMIN');
+        for (let i = 0; i < clientUsers.length; i++) {
+          const u = clientUsers[i];
+          if (!u.clientId) {
+            u.clientId = client.id;
+            if (prisma && this.isPrismaActive) {
+              prisma.user.update({ where: { id: u.id }, data: { clientId: client.id } }).catch(() => {});
+            }
+          }
+          if (!hasAdmin && i === 0 && u.role === 'CLIENT') {
+            u.role = 'CLIENT_ADMIN';
+            hasAdmin = true;
+            if (prisma && this.isPrismaActive) {
+              prisma.user.update({ where: { id: u.id }, data: { role: 'CLIENT_ADMIN' } }).catch(() => {});
+            }
+          }
+        }
+      }
     }
   }
 
@@ -628,6 +657,7 @@ class DatabaseService {
       pushSubscriptions: [],
     };
     this.recalculateAllProjectProgress();
+    this.ensureClientAdmins();
   }
 
   public async resetToSeed() {
@@ -738,6 +768,7 @@ class DatabaseService {
             passwordHash: newUser.passwordHash,
             role: newUser.role,
             profileImage: newUser.profileImage,
+            clientId: newUser.clientId,
           },
         })
         .catch(() => {});

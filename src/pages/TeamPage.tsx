@@ -43,7 +43,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
     name: '',
     email: '',
     password: '',
-    role: 'TEAM_MEMBER' as Role,
+    role: (role === 'SUPER_ADMIN' ? 'ADMIN' : 'TEAM_MEMBER') as Role,
   });
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState('');
@@ -158,7 +158,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
                 name: '',
                 email: '',
                 password: '',
-                role: 'TEAM_MEMBER',
+                role: (role === 'SUPER_ADMIN' ? 'ADMIN' : 'TEAM_MEMBER') as Role,
               });
               setAddError('');
               setIsAddModalOpen(true);
@@ -379,10 +379,10 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
                   onChange={(e) => setAddForm({ ...addForm, role: e.target.value as Role })}
                   className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden cursor-pointer"
                 >
-                  <option value="TEAM_MEMBER">Team Member (Developer, Designer, QA)</option>
-                  <option value="ADMIN">Admin (Project Manager)</option>
-                  {role === 'SUPER_ADMIN' && (
-                    <option value="SUPER_ADMIN">Super Admin (Full System Access)</option>
+                  {role === 'SUPER_ADMIN' ? (
+                    <option value="ADMIN">Admin (Studio Manager)</option>
+                  ) : (
+                    <option value="TEAM_MEMBER">Team Member (Developer, Designer, QA)</option>
                   )}
                 </select>
               </div>

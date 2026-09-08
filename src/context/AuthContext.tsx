@@ -8,7 +8,7 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (email: string, password?: string) => Promise<void>;
-  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; role?: string }) => Promise<void>;
+  register: (payload: { name: string; email: string; password: string; confirmPassword?: string; companyName?: string }) => Promise<void>;
   logout: () => void;
   quickSwitchAccount: (email: string, password?: string) => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -57,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (payload: { name: string; email: string; password: string; confirmPassword?: string; role?: string }) => {
+  const register = async (payload: { name: string; email: string; password: string; confirmPassword?: string; companyName?: string }) => {
     setIsLoading(true);
     try {
       const response = await api.register(payload);

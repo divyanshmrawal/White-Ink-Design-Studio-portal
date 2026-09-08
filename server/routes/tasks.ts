@@ -12,10 +12,10 @@ tasksRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => 
   let allTasks = db.getTasks();
 
   // Role scoping
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const clientProjects = db.getProjects().filter((p) => {
       const client = db.getClientById(p.clientId);
-      return (client && client.email.toLowerCase() === currentUser.email.toLowerCase()) || p.clientId === currentUser.id;
+      return (client && ((currentUser.clientId && client.id === currentUser.clientId) || client.email.toLowerCase() === currentUser.email.toLowerCase() || p.clientId === currentUser.id));
     });
     const allowedProjectIds = new Set(clientProjects.map((p) => p.id));
     allTasks = allTasks.filter((t) => allowedProjectIds.has(t.projectId));
@@ -94,9 +94,9 @@ tasksRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) 
   }
 
   // Role scoping
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const client = db.getClientById(project.clientId);
-    if (!client || (client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id)) {
+    if (!client || ((!currentUser.clientId || client.id !== currentUser.clientId) && client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id)) {
       return res.status(403).json({ message: 'Forbidden: Access to this task is restricted.' });
     }
   }
@@ -130,7 +130,7 @@ tasksRouter.post('/', requireAuth, (req: AuthenticatedRequest, res: Response) =>
     const currentUser = req.user!;
     const { title, description, projectId, assignedToId, status, priority, progress, dueDate } = req.body;
 
-    if (currentUser.role === 'CLIENT') {
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Clients cannot create internal tasks.' });
     }
 
@@ -182,7 +182,7 @@ tasksRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
     }
 
     // Role checks
-    if (currentUser.role === 'CLIENT') {
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Clients cannot modify task configuration.' });
     }
 
@@ -225,7 +225,7 @@ tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res:
   const { id } = req.params;
   const { feedback, priority, targetDate, files } = req.body;
 
-  if (currentUser.role !== 'CLIENT') {
+  if (currentUser.role !== 'CLIENT' && currentUser.role !== 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Only clients can submit revision requests.' });
   }
 
@@ -303,7 +303,7 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
   const currentUser = req.user!;
   const { id } = req.params;
 
-  if (currentUser.role !== 'CLIENT') {
+  if (currentUser.role !== 'CLIENT' && currentUser.role !== 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Only clients can approve tasks.' });
   }
 
@@ -399,7 +399,7 @@ tasksRouter.patch('/:id/status', requireAuth, (req: AuthenticatedRequest, res: R
   const { id } = req.params;
   const { status } = req.body;
 
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Clients cannot change task status.' });
   }
 
@@ -433,7 +433,7 @@ tasksRouter.patch('/:id/progress', requireAuth, (req: AuthenticatedRequest, res:
   const { id } = req.params;
   const { progress } = req.body;
 
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     return res.status(403).json({ message: 'Clients cannot modify task progress directly.' });
   }
 
@@ -496,7 +496,7 @@ tasksRouter.post('/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Re
 
   if (project) {
     const client = db.getClientById(project.clientId);
-    const clientUser = client ? db.getUsers().find((u) => u.email.toLowerCase() === client.email.toLowerCase()) : null;
+    const clientUser = client ? db.getUsers().find((u) => u.clientId === client.id || u.email.toLowerCase() === client.email.toLowerCase()) : null;
     if (clientUser) {
       db.createNotification({
         id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

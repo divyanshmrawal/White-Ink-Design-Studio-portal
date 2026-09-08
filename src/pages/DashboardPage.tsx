@@ -58,7 +58,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const isSuperAdminOrAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
-  const isTeamMemberOrAdmin = user?.role !== 'CLIENT';
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
+  const isInternalStaff = !isClient;
 
   const loadDashboardData = useCallback(async () => {
     setIsLoading(true);
@@ -72,7 +73,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         api.getApprovals().catch(() => []),
       ];
 
-      if (user?.role !== 'CLIENT') {
+      if (isInternalStaff) {
         promises.push(api.getTodayAttendance().catch(() => ({ attendance: null })));
         promises.push(api.getAttendanceStats().catch(() => null));
       }
@@ -84,7 +85,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       setUpcomingMilestones(results[3].slice(0, 4));
       setPendingApprovals(results[4].filter((a: any) => a.status === 'PENDING').slice(0, 3));
 
-      if (user?.role !== 'CLIENT') {
+      if (isInternalStaff) {
         setTodayAttendance(results[5]?.attendance || null);
         setAttendanceStats(results[6] || null);
       }
@@ -94,7 +95,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isInternalStaff]);
 
   useEffect(() => {
     loadDashboardData();
@@ -127,7 +128,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </span>
           </div>
           <p className="text-sm text-black/70 font-medium">
-            {user?.role === 'CLIENT'
+            {isClient
               ? 'Real-time overview of your contracted projects and deliverable progress'
               : 'Workspace operations, active deliverables, and cross-team project tracking'}
           </p>
@@ -164,7 +165,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </>
           )}
 
-          {user?.role === 'CLIENT' && (
+          {isClient && (
             <button
               type="button"
               onClick={onOpenClientProject}
@@ -251,14 +252,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           <div className="bg-white p-5 rounded-xl border border-gold-300 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between text-black mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-black/75">
-                {user?.role === 'CLIENT' ? 'Avg. Progress' : 'Clients & Team'}
+                {isClient ? 'Avg. Progress' : 'Clients & Team'}
               </span>
               <div className="p-2 bg-gold-100 text-black border border-gold-300 rounded-lg">
-                {user?.role === 'CLIENT' ? <TrendingUp className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                {isClient ? <TrendingUp className="h-4 w-4" /> : <Users className="h-4 w-4" />}
               </div>
             </div>
             <div>
-              {user?.role === 'CLIENT' ? (
+              {isClient ? (
                 <div>
                   <div className="text-2xl font-extrabold text-black tracking-tight">
                     {stats.averageProjectProgress}%
@@ -283,7 +284,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       )}
 
       {/* Attendance Quick Punch & Status Bar (Internal Team & Admins) */}
-      {isTeamMemberOrAdmin && (
+      {isInternalStaff && (
         <div className="bg-gold-50/80 rounded-xl border border-gold-300 p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-black text-gold-400 rounded-xl shadow-xs border border-gold-500">
@@ -431,7 +432,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-black">
-                    {user?.role === 'CLIENT' ? 'Deliverables Awaiting Your Review' : 'Client Approval Requests'}
+                    {isClient ? 'Deliverables Awaiting Your Review' : 'Client Approval Requests'}
                   </h3>
                   <p className="text-[11px] text-black/70 font-medium">
                     {pendingApprovals.length} pending client sign-off
@@ -562,7 +563,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             {recentProjects.length === 0 ? (
               <div className="p-8 text-center text-xs text-black/60 font-medium">
                 <p>No projects found.</p>
-                {user?.role === 'CLIENT' && (
+                {isClient && (
                   <div className="mt-3">
                     <button
                       type="button"
@@ -633,7 +634,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                 <div key={task.id} className="p-4 hover:bg-gold-50/70 transition-colors flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      {user?.role !== 'CLIENT' && <PriorityBadge priority={task.priority} size="sm" />}
+                      {isInternalStaff && <PriorityBadge priority={task.priority} size="sm" />}
                       <span className="text-xs text-black/70 font-medium truncate">
                         {task.projectName}
                       </span>
@@ -647,7 +648,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
                   </div>
 
                   <div className="shrink-0 flex items-center gap-2">
-                    {user?.role !== 'CLIENT' ? (
+                    {isInternalStaff ? (
                       <select
                         value={task.status}
                         onChange={(e) => handleQuickTaskStatus(task.id, e.target.value as TaskStatus)}

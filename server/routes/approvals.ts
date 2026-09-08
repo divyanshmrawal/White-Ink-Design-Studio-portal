@@ -12,9 +12,9 @@ approvalsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response)
   let allApprovals = db.getApprovals();
 
   // Role scoping:
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const matchingClients = db.getClients().filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(matchingClients.map((c) => c.id));
     const allowedProjectIds = new Set(
@@ -111,7 +111,7 @@ approvalsRouter.post(
   (req: AuthenticatedRequest, res: Response) => {
     const currentUser = req.user!;
 
-    if (currentUser.role === 'CLIENT') {
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Clients cannot request internal approvals.' });
     }
 
@@ -172,8 +172,8 @@ approvalsRouter.put(
 
     const updates: Partial<Parameters<typeof db.updateApproval>[1]> = {};
 
-    // If client is resolving the approval:
-    if (currentUser.role === 'CLIENT') {
+    // If client or client admin is resolving the approval:
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
         return res.status(400).json({ message: 'Status must be APPROVED or REJECTED.' });
       }

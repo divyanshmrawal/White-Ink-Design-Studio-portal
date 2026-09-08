@@ -26,7 +26,7 @@ export const MilestonesPage: React.FC<MilestonesPageProps> = ({ onNavigate }) =>
   const { user } = useAuth();
   const role = user?.role || 'TEAM_MEMBER';
   const canManage = role === 'SUPER_ADMIN' || role === 'ADMIN';
-  const canUpdateProgress = role !== 'CLIENT';
+  const canUpdateProgress = role !== 'CLIENT' && role !== 'CLIENT_ADMIN';
 
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);

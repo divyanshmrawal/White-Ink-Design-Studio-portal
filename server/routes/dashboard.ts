@@ -15,9 +15,9 @@ dashboardRouter.get('/stats', requireAuth, (req: AuthenticatedRequest, res: Resp
   let users = db.getUsers();
 
   // Role scoping
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const clientRecords = clients.filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(clientRecords.map((c) => c.id));
     projects = projects.filter((p) => clientIds.has(p.clientId));
@@ -68,9 +68,9 @@ dashboardRouter.get('/recent-projects', requireAuth, (req: AuthenticatedRequest,
 
   let projects = [...db.getProjects()];
 
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const clientRecords = db.getClients().filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(clientRecords.map((c) => c.id));
     projects = projects.filter((p) => clientIds.has(p.clientId));
@@ -110,9 +110,9 @@ dashboardRouter.get('/recent-tasks', requireAuth, (req: AuthenticatedRequest, re
   const currentUser = req.user!;
   let tasks = [...db.getTasks()];
 
-  if (currentUser.role === 'CLIENT') {
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     const clientRecords = db.getClients().filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
     const clientIds = new Set(clientRecords.map((c) => c.id));
     const allowedProjects = new Set(db.getProjects().filter((p) => clientIds.has(p.clientId)).map((p) => p.id));

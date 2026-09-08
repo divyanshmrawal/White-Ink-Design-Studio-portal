@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Mail, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, Building2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { BrandLogo } from '../components/common/BrandLogo';
 
 interface RegisterPageProps {
@@ -10,10 +10,10 @@ interface RegisterPageProps {
 export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin }) => {
   const { register } = useAuth();
   const [name, setName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'TEAM_MEMBER' | 'CLIENT'>('TEAM_MEMBER');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,13 +38,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
     try {
       await register({
         name: name.trim(),
+        companyName: companyName.trim() || `${name.trim()}'s Company`,
         email: email.trim().toLowerCase(),
         password,
         confirmPassword,
-        role,
       });
     } catch (err: any) {
-      setError(err.message || 'Registration failed.');
+      setError(err.message || 'Company registration failed.');
     } finally {
       setIsLoading(false);
     }
@@ -55,10 +55,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <BrandLogo className="mx-auto h-auto w-48 max-w-full object-contain mb-4" />
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-          Create Account
+          Register Your Company
         </h2>
         <p className="mt-1 text-sm text-black/70 font-medium">
-          Join the organization workspace as a Team Member or Client
+          Create your client organization workspace and administrator account
         </p>
       </div>
 
@@ -73,7 +73,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                Full Name
+                Full Name <span className="text-rose-600">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gold-600">
@@ -92,7 +92,25 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                Work Email
+                Company Name
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gold-600">
+                  <Building2 className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g., Acme Studios Inc."
+                  className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-gold-300 text-black rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-gold-500 focus:border-gold-600"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
+                Work Email <span className="text-rose-600">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gold-600">
@@ -111,7 +129,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                Password
+                Password <span className="text-rose-600">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gold-600">
@@ -130,7 +148,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                Confirm Password
+                Confirm Password <span className="text-rose-600">*</span>
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gold-600">
@@ -147,45 +165,12 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-black mb-1.5">
-                Registering As
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('TEAM_MEMBER')}
-                  className={`p-3 rounded-lg border-2 text-xs font-bold text-left transition-all cursor-pointer ${
-                    role === 'TEAM_MEMBER'
-                      ? 'bg-gold-100 border-gold-600 text-black shadow-xs'
-                      : 'bg-white border-gold-200 text-black/70 hover:border-gold-400'
-                  }`}
-                >
-                  <div className="font-bold text-black">Team Member</div>
-                  <div className="text-[11px] text-black/70 mt-0.5 font-normal">Work on assigned tasks</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRole('CLIENT')}
-                  className={`p-3 rounded-lg border-2 text-xs font-bold text-left transition-all cursor-pointer ${
-                    role === 'CLIENT'
-                      ? 'bg-gold-100 border-gold-600 text-black shadow-xs'
-                      : 'bg-white border-gold-200 text-black/70 hover:border-gold-400'
-                  }`}
-                >
-                  <div className="font-bold text-black">Client Partner</div>
-                  <div className="text-[11px] text-black/70 mt-0.5 font-normal">Track project deliverables</div>
-                </button>
-              </div>
-            </div>
-
             <button
               type="submit"
               disabled={isLoading}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-bold text-black bg-gold-500 hover:bg-gold-600 transition-all duration-150 shadow-sm border border-gold-600 disabled:opacity-50 mt-4 cursor-pointer btn-hover-lift"
             >
-              {isLoading ? 'Creating account...' : 'Create Account'}
+              {isLoading ? 'Registering company...' : 'Register Company'}
               <ArrowRight className="h-4 w-4 stroke-[2.5]" />
             </button>
           </form>
@@ -205,4 +190,3 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onNavigateToLogin })
     </div>
   );
 };
-

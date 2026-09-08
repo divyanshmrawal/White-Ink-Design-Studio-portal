@@ -11,10 +11,10 @@ clientsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) =
 
   let clients = db.getClients();
 
-  // If role is CLIENT, only show their own client record
-  if (currentUser.role === 'CLIENT') {
+  // If role is CLIENT or CLIENT_ADMIN, only show their own client record
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
     clients = clients.filter(
-      (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
+      (c) => (currentUser.clientId && c.id === currentUser.clientId) || c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
     );
   }
 
@@ -51,9 +51,9 @@ clientsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
     return res.status(404).json({ message: 'Client not found.' });
   }
 
-  // Access check for Client role
-  if (currentUser.role === 'CLIENT') {
-    if (client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id) {
+  // Access check for Client & Client Admin role
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
+    if ((!currentUser.clientId || client.id !== currentUser.clientId) && client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id) {
       return res.status(403).json({ message: 'Forbidden: Access to this client record is restricted.' });
     }
   }
@@ -109,8 +109,8 @@ clientsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
 
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
     const isOwnClient =
-      currentUser.role === 'CLIENT' &&
-      (target.id === currentUser.id || target.email.toLowerCase() === currentUser.email.toLowerCase());
+      (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') &&
+      ((currentUser.clientId && target.id === currentUser.clientId) || target.id === currentUser.id || target.email.toLowerCase() === currentUser.email.toLowerCase());
     if (!isAdmin && !isOwnClient) {
       return res.status(403).json({ message: 'Forbidden: You cannot modify this client record.' });
     }

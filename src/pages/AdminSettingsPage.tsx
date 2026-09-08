@@ -90,7 +90,7 @@ export const AdminSettingsPage: React.FC = () => {
         setSettings(settingsRes.settings);
       }
       setOverrides(overridesRes);
-      setUsers(usersRes.filter((u) => u.role !== 'CLIENT'));
+      setUsers(usersRes.filter((u) => u.role !== 'CLIENT' && u.role !== 'CLIENT_ADMIN'));
 
       const pStatus = await checkPushSupport();
       setPushStatus(pStatus);
