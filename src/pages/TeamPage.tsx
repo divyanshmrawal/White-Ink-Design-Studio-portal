@@ -12,6 +12,8 @@ import {
   Clock,
   ChevronRight,
   X,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 interface TeamPageProps {
@@ -47,6 +49,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
   });
   const [addSubmitting, setAddSubmitting] = useState(false);
   const [addError, setAddError] = useState('');
+  const [showAddPassword, setShowAddPassword] = useState(false);
 
   const fetchTeam = async () => {
     try {
@@ -80,6 +83,7 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
         role: addForm.role,
       });
       setIsAddModalOpen(false);
+      setShowAddPassword(false);
       fetchTeam();
     } catch (err: any) {
       setAddError(err.message || 'Failed to create user');
@@ -360,14 +364,24 @@ export const TeamPage: React.FC<TeamPageProps> = ({ onNavigate }) => {
                 <label className="form-label block mb-1">
                   Password *
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Minimum 6 characters"
-                  value={addForm.password}
-                  onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
-                  className="w-full px-3 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden"
-                />
+                <div className="relative">
+                  <input
+                    type={showAddPassword ? 'text' : 'password'}
+                    required
+                    placeholder="Minimum 6 characters"
+                    value={addForm.password}
+                    onChange={(e) => setAddForm({ ...addForm, password: e.target.value })}
+                    className="w-full pl-3 pr-10 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:ring-2 focus:ring-gold-500 focus:outline-hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAddPassword(!showAddPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
+                    title={showAddPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showAddPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               <div>

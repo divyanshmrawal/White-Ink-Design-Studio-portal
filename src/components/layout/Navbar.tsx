@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { LogOut, Menu, ChevronDown, RotateCcw } from 'lucide-react';
-import { api } from '../../services/api';
+import { LogOut, Menu } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { BrandLogo } from '../common/BrandLogo';
 
@@ -11,31 +10,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onNavigate }) => {
-  const { user, logout, quickSwitchAccount, refreshUser } = useAuth();
-  const [showRoleMenu, setShowRoleMenu] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
-
-  const demoAccounts = [
-    { email: 'alex@planforge.io', password: 'Admin@123', role: 'SUPER_ADMIN', label: 'Alex Vance (Super Admin)' },
-    { email: 'sarah@planforge.io', password: 'Admin@123', role: 'ADMIN', label: 'Sarah Connor (Admin)' },
-    { email: 'david@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', label: 'David Kim (Dev)' },
-    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT_ADMIN', label: 'Jonathan Sterling (Client Admin)' },
-    { email: 'rachel@acmecorp.com', password: 'Client@123', role: 'CLIENT', label: 'Rachel Green (Client Member)' },
-  ];
-
-  const handleResetData = async () => {
-    if (!window.confirm('Reset all demo data back to initial seed state?')) return;
-    setIsResetting(true);
-    try {
-      await api.resetDemoDatabase();
-      await refreshUser();
-      window.location.reload();
-    } catch (err) {
-      console.error('Reset error:', err);
-    } finally {
-      setIsResetting(false);
-    }
-  };
+  const { user, logout } = useAuth();
 
   const roleBadgeMap: Record<string, string> = {
     SUPER_ADMIN: 'bg-black text-gold-400 border-gold-600 font-semibold',
@@ -72,58 +47,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar, onNavigate }) =
 
       {/* Right section */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Quick Demo Role Switcher */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowRoleMenu(!showRoleMenu)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-black bg-white hover:bg-gold-50 rounded-lg border border-gold-600/40 shadow-2xs hover:shadow-xs transition-all duration-200 cursor-pointer"
-            title="Quick switch demo user role"
-          >
-            <span className="hidden sm:inline text-black/70 font-normal">Role:</span>
-            <span className="font-bold text-black">{user?.role?.replace('_', ' ')}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-black" />
-          </button>
-
-          {showRoleMenu && (
-            <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border-2 border-gold-300 py-1.5 z-50 animate-gold-fade-in">
-              <div className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-black bg-gold-50 border-b border-gold-200">
-                Switch Demo User
-              </div>
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => {
-                    quickSwitchAccount(acc.email, acc.password);
-                    setShowRoleMenu(false);
-                  }}
-                  className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-gold-100/60 transition-colors duration-150 cursor-pointer ${
-                    user?.email === acc.email ? 'bg-gold-200 font-bold text-black border-l-3 border-gold-600' : 'text-black'
-                  }`}
-                >
-                  <span className="truncate">{acc.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border ${roleBadgeMap[acc.role] || ''}`}>
-                    {acc.role}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Reset Database Button */}
-        <button
-          type="button"
-          onClick={handleResetData}
-          disabled={isResetting}
-          className="hidden md:flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-black bg-white/90 hover:bg-white rounded-lg border border-gold-600/40 shadow-2xs transition-all duration-200 cursor-pointer"
-          title="Reset sample database"
-        >
-          <RotateCcw className={`h-3.5 w-3.5 ${isResetting ? 'animate-spin text-gold-700' : 'text-black'}`} />
-          <span>Reset Demo</span>
-        </button>
-
         {/* Notification Bell Dropdown */}
         <NotificationDropdown onNavigate={onNavigate} />
 

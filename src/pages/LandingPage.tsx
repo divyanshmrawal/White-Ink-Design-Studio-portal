@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { BrandLogo } from '../components/common/BrandLogo';
-import { Sparkles, Layers, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Sparkles, Layers, ShieldCheck } from 'lucide-react';
 
 export const LandingPage: React.FC<{ onLogin: () => void; onRegister: () => void }> = ({
   onLogin,
@@ -94,24 +94,6 @@ export const LandingPage: React.FC<{ onLogin: () => void; onRegister: () => void
           <p className="muted max-w-2xl mt-6 text-base sm:text-lg text-gold-800/90 leading-relaxed">
             Unify client deliverables, project phases, multi-disciplinary teams, and creative milestones under one cohesive, gold-standard studio platform.
           </p>
-
-          <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={onLogin}
-              className="primary-cta btn-hover-lift px-8 py-3.5 text-base font-semibold rounded-xl flex items-center gap-2.5 shadow-md cursor-pointer"
-            >
-              Enter Studio Portal
-              <ArrowRight className="w-4 h-4" />
-            </motion.button>
-            <button
-              onClick={onRegister}
-              className="px-6 py-3.5 text-base font-medium rounded-xl border border-gold-300 bg-white/90 text-heading hover:bg-gold-50 hover:border-gold-400 transition-all shadow-2xs cursor-pointer"
-            >
-              Client Onboarding
-            </button>
-          </div>
         </motion.div>
 
         {/* Feature Cards Grid */}

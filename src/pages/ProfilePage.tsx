@@ -1,13 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { Shield, Mail, CheckCircle2, FolderKanban, CheckSquare, Key, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
+import { Shield, Mail, CheckCircle2, FolderKanban, CheckSquare, Key, Eye, EyeOff, AlertCircle, Loader2, User } from 'lucide-react';
 
 export const ProfilePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [assignedProjectsCount, setAssignedProjectsCount] = useState<number>(0);
   const [assignedTasksCount, setAssignedTasksCount] = useState<number>(0);
   const [completedTasksCount, setCompletedTasksCount] = useState<number>(0);
+
+  // Edit Profile Details State
+  const [profileName, setProfileName] = useState(user?.name || '');
+  const [profileImageUrl, setProfileImageUrl] = useState(user?.profileImage || '');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name || '');
+      setProfileImageUrl(user.profileImage || '');
+    }
+  }, [user]);
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setProfileSuccess(null);
+    setProfileError(null);
+    if (!profileName.trim()) {
+      setProfileError('Name is required.');
+      return;
+    }
+    if (!user?.id) {
+      setProfileError('User session not found.');
+      return;
+    }
+    setProfileLoading(true);
+    try {
+      await api.updateUser(user.id, {
+        name: profileName.trim(),
+        profileImage: profileImageUrl.trim() || undefined,
+      });
+      await refreshUser();
+      setProfileSuccess('Profile details updated successfully.');
+    } catch (err: any) {
+      setProfileError(err.message || 'Failed to update profile details.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   // Voluntary Password Change State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -201,6 +242,97 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Edit Profile Card */}
+      <div className="bg-card rounded-xl border border-gold-200 shadow-xs">
+        <div className="px-6 py-4 border-b border-gold-200">
+          <h2 className="text-sm font-bold text-black flex items-center gap-2">
+            <User className="h-4 w-4 text-gold-600 stroke-[2.5]" />
+            Edit Profile
+          </h2>
+          <p className="text-xs text-neutral-600 mt-0.5">
+            Update your display name and profile picture
+          </p>
+        </div>
+
+        <form onSubmit={handleProfileUpdate} className="p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 mb-2">
+            <img
+              src={
+                profileImageUrl.trim() ||
+                `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                  profileName.trim() || 'User'
+                )}`
+              }
+              alt="Profile Preview"
+              className="h-14 w-14 rounded-xl border border-gold-300 object-cover shadow-xs"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+                  profileName.trim() || 'User'
+                )}`;
+              }}
+            />
+            <div className="text-xs text-neutral-600 flex-1">
+              <span className="font-semibold text-black block mb-0.5">Avatar Preview</span>
+              <span>Displays in the top navigation bar, sidebar, project comments, and team activity.</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1">
+                Full Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                placeholder="e.g. Alex Vance"
+                className="w-full pl-3.5 pr-3.5 py-2 text-sm bg-gold-50/30 border border-gold-300 rounded-lg text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1">
+                Profile Image URL (optional)
+              </label>
+              <input
+                type="url"
+                value={profileImageUrl}
+                onChange={(e) => setProfileImageUrl(e.target.value)}
+                placeholder="https://images.unsplash.com/..."
+                className="w-full pl-3.5 pr-3.5 py-2 text-sm bg-gold-50/30 border border-gold-300 rounded-lg text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+              />
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {profileSuccess && (
+            <div className="flex items-center gap-2 p-3 text-sm text-black bg-gold-50 border border-gold-300 font-medium rounded-lg">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-gold-700" />
+              {profileSuccess}
+            </div>
+          )}
+          {profileError && (
+            <div className="flex items-center gap-2 p-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              {profileError}
+            </div>
+          )}
+
+          <div className="flex justify-end pt-1">
+            <button
+              type="submit"
+              disabled={profileLoading}
+              className="inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg bg-gold-500 hover:bg-gold-600 text-black border border-gold-600 disabled:opacity-60 shadow-xs cursor-pointer btn-hover-lift"
+            >
+              {profileLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {profileLoading ? 'Saving...' : 'Save Profile'}
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Change Password Card */}
       <div className="bg-card rounded-xl border border-gold-200 shadow-xs">

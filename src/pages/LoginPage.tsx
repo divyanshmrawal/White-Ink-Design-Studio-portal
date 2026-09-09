@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, ArrowRight } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { BrandLogo } from '../components/common/BrandLogo';
 
 interface LoginPageProps {
@@ -9,8 +9,9 @@ interface LoginPageProps {
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('alex@planforge.io');
-  const [password, setPassword] = useState('Admin@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,28 +27,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
       setIsLoading(false);
     }
   };
-
-  const handleDemoLogin = async (demoEmail: string, demoPassword: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setIsLoading(true);
-    setError(null);
-    try {
-      await login(demoEmail, demoPassword);
-    } catch (err: any) {
-      setError(err.message || 'Login failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const demoAccounts = [
-    { email: 'alex@planforge.io', password: 'Admin@123', role: 'SUPER_ADMIN', name: 'Alex Vance', title: 'Super Admin' },
-    { email: 'sarah@planforge.io', password: 'Admin@123', role: 'ADMIN', name: 'Sarah Connor', title: 'Project Manager' },
-    { email: 'david@planforge.io', password: 'User@123', role: 'TEAM_MEMBER', name: 'David Kim', title: 'Lead Engineer' },
-    { email: 'jonathan@acmecorp.com', password: 'Client@123', role: 'CLIENT_ADMIN', name: 'Jonathan Sterling', title: 'Acme Client Admin' },
-    { email: 'rachel@acmecorp.com', password: 'Client@123', role: 'CLIENT', name: 'Rachel Green', title: 'Acme Client Member' },
-  ];
 
   return (
     <div className="min-h-screen bg-[#F8F4E5] flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -92,13 +71,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
                   <Lock className="h-4 w-4" />
                 </div>
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-gold-300 text-black rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-gold-500 focus:border-gold-600"
+                  className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-gold-300 text-black rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-gold-500 focus:border-gold-600"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 
@@ -111,32 +98,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onNavigateToRegister }) =>
               <ArrowRight className="h-4 w-4 stroke-[2.5]" />
             </button>
           </form>
-
-          {/* Quick Demo Accounts */}
-          <div className="mt-6 pt-6 border-t border-gold-200">
-            <p className="text-[11px] font-extrabold uppercase tracking-wider text-black/75 mb-3 text-center">
-              1-Click Demo Logins (Seeded Accounts)
-            </p>
-            <div className="space-y-1.5">
-              {demoAccounts.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => handleDemoLogin(acc.email, acc.password)}
-                  disabled={isLoading}
-                  className="w-full flex items-center justify-between px-3 py-2 text-xs bg-gold-50/70 hover:bg-gold-100/90 border border-gold-300 rounded-lg text-black transition-colors text-left cursor-pointer group"
-                >
-                  <div className="truncate">
-                    <span className="font-bold text-black">{acc.name}</span>
-                    <span className="text-black/70 ml-1.5 font-medium">({acc.title})</span>
-                  </div>
-                  <span className="text-[10px] font-mono text-black font-extrabold group-hover:underline">
-                    {acc.role} →
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="mt-6 text-center">
             <p className="text-xs text-black/80 font-medium">

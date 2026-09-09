@@ -55,6 +55,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   } | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(true);
+  const [showEditPassword, setShowEditPassword] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -83,6 +84,7 @@ export const UserModal: React.FC<UserModalProps> = ({
     setError(null);
     setCreatedCredentials(null);
     setIsCopied(false);
+    setShowEditPassword(false);
   }, [user, isOpen, defaultRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -306,13 +308,23 @@ export const UserModal: React.FC<UserModalProps> = ({
             <label className="form-label block mb-1 text-heading">
               Password (leave blank to keep current)
             </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
-            />
+            <div className="relative">
+              <input
+                type={showEditPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-3.5 pr-10 py-2 text-sm bg-gold-50/40 border border-gold-300 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowEditPassword(!showEditPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
+                title={showEditPassword ? 'Hide password' : 'Show password'}
+              >
+                {showEditPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="p-3 bg-gold-50 border border-gold-300 rounded-lg text-xs text-neutral-700 flex items-center gap-2">
