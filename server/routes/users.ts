@@ -126,11 +126,11 @@ usersRouter.post(
         role: role as Role,
         clientId: assignedClientId,
         profileImage: profileImage || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
-        mustChangePassword: true,
+        mustChangePassword: role === 'CLIENT' || role === 'CLIENT_ADMIN' ? false : true,
       });
 
       // Archive generated credentials in vault
-      db.createIssuedCredential({
+      db.upsertIssuedCredential({
         userId: newUser.id,
         email: newUser.email,
         plaintextPassword,
@@ -244,6 +244,15 @@ usersRouter.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Re
     const updatedUser = db.updateUser(id, updates);
     if (!updatedUser) {
       return res.status(500).json({ message: 'Failed to update user.' });
+    }
+
+    if (password && password.trim().length >= 6) {
+      db.upsertIssuedCredential({
+        userId: id,
+        email: updatedUser.email,
+        plaintextPassword: password.trim(),
+        createdById: currentUser.id,
+      });
     }
 
     return res.json(sanitizeUser(updatedUser));

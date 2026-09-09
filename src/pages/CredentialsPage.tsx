@@ -13,10 +13,12 @@ import {
   EyeOff,
   Mail,
   Building2,
-  Shield,
-  User,
-  ShieldAlert,
+  Key,
+  Sparkles,
   Info,
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
 } from 'lucide-react';
 
 export const CredentialsPage: React.FC = () => {
@@ -26,6 +28,13 @@ export const CredentialsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Inline Password Change state
+  const [activeEditCredId, setActiveEditCredId] = useState<string | null>(null);
+  const [customPassword, setCustomPassword] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
 
   const loadCredentials = useCallback(async () => {
     setIsLoading(true);
@@ -62,6 +71,49 @@ export const CredentialsPage: React.FC = () => {
     setTimeout(() => {
       setCopiedId(null);
     }, 2500);
+  };
+
+  const handleUpdatePassword = async (cred: IssuedCredential, newPassword?: string) => {
+    if (newPassword && newPassword.length < 6) {
+      setUpdateError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setIsUpdating(true);
+    setUpdateError(null);
+
+    try {
+      const res = await api.updateCredentialPassword(cred.userId, newPassword);
+
+      // Update the credential in state immediately
+      setCredentials((prev) =>
+        prev.map((c) =>
+          c.id === cred.id || c.userId === cred.userId
+            ? {
+                ...c,
+                plaintextPassword: res.plaintextPassword,
+                createdAt: new Date().toISOString(),
+              }
+            : c
+        )
+      );
+
+      // Automatically reveal this password so the admin sees the updated password immediately
+      setRevealedIds((prev) => new Set(prev).add(cred.id));
+
+      // Reset inline form
+      setActiveEditCredId(null);
+      setCustomPassword('');
+      setUpdateSuccess(`Password for ${cred.email} updated successfully!`);
+      setTimeout(() => setUpdateSuccess(null), 4000);
+
+      // Refresh list from server
+      loadCredentials();
+    } catch (err: any) {
+      setUpdateError(err.message || 'Failed to update user password.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const filtered = credentials.filter((c) => {
@@ -126,20 +178,24 @@ export const CredentialsPage: React.FC = () => {
             <h1 className="text-2xl font-bold tracking-tight text-heading">Credentials Vault</h1>
           </div>
           <p className="text-sm text-neutral-600 mt-1">
-            {currentUser?.role === 'SUPER_ADMIN'
-              ? 'Comprehensive vault of all system credentials auto-generated for Admins, Client Admins, and Staff'
-              : currentUser?.role === 'CLIENT_ADMIN'
-              ? 'Retrieve auto-generated login credentials for your company team members'
-              : 'Retrieve auto-generated login credentials for your team members'}
+            Comprehensive system vault of credentials. Super Admin can view, copy, and rotate passwords for any staff or client account.
           </p>
         </div>
       </div>
+
+      {/* Success banner */}
+      {updateSuccess && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-xl flex items-center gap-2.5 text-xs text-emerald-900 font-semibold animate-gold-fade-in shadow-2xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{updateSuccess}</span>
+        </div>
+      )}
 
       {/* Info notice */}
       <div className="p-4 bg-gold-50/70 border border-gold-300 rounded-xl flex items-start gap-3 text-xs text-neutral-800 leading-relaxed font-medium">
         <Info className="h-4 w-4 text-gold-700 shrink-0 mt-0.5" />
         <div>
-          The credentials below record the initial temporary passwords auto-generated upon account provisioning or request approval. Use the copy button to safely hand out access to your members. Once a user logs in and updates their password, their permanent password is encrypted with bcrypt and cannot be displayed here.
+          This vault stores active and auto-generated passwords for Admins, Team Members, and Clients. Use <strong>Change Password</strong> on any record to automatically generate a new strong password or assign a custom one.
         </div>
       </div>
 
@@ -184,58 +240,59 @@ export const CredentialsPage: React.FC = () => {
                   <th className="px-5 py-3.5">Role</th>
                   <th className="px-5 py-3.5">Organization</th>
                   <th className="px-5 py-3.5">Password</th>
-                  {currentUser?.role === 'SUPER_ADMIN' && <th className="px-5 py-3.5">Issued By</th>}
-                  <th className="px-5 py-3.5">Generated On</th>
-                  <th className="px-5 py-3.5 text-right">Action</th>
+                  <th className="px-5 py-3.5">Issued By</th>
+                  <th className="px-5 py-3.5">Last Updated</th>
+                  <th className="px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gold-200 text-heading">
                 {filtered.map((cred) => {
                   const isRevealed = revealedIds.has(cred.id);
                   const isJustCopied = copiedId === cred.id;
+                  const isEditingThis = activeEditCredId === cred.id;
 
                   return (
-                    <tr key={cred.id} className="hover:bg-gold-50/40 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="font-bold text-black">{cred.user?.name || 'Authorized Member'}</div>
-                        <div className="text-xs text-neutral-600 flex items-center gap-1 mt-0.5">
-                          <Mail className="h-3 w-3 text-gold-600" />
-                          {cred.email}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {getRoleBadge(cred.user?.role)}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        {(cred.user as any)?.companyName ? (
-                          <span className="font-medium text-black flex items-center gap-1.5 text-xs">
-                            <Building2 className="h-3.5 w-3.5 text-neutral-500" />
-                            {(cred.user as any).companyName}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-neutral-500 italic">White Ink Design Studio</span>
-                        )}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
-                          <div className="font-mono text-sm bg-gold-50/60 px-3 py-1.5 rounded-lg border border-gold-300 text-black select-all min-w-[150px] tracking-wider">
-                            {isRevealed ? cred.plaintextPassword : '••••••••••••'}
+                    <React.Fragment key={cred.id}>
+                      <tr className="hover:bg-gold-50/40 transition-colors">
+                        <td className="px-5 py-4">
+                          <div className="font-bold text-black">{cred.user?.name || 'Authorized Member'}</div>
+                          <div className="text-xs text-neutral-600 flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3 text-gold-600" />
+                            {cred.email}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => toggleReveal(cred.id)}
-                            className="p-1.5 text-neutral-600 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
-                            title={isRevealed ? 'Mask password' : 'Show password'}
-                          >
-                            {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </td>
+                        </td>
 
-                      {currentUser?.role === 'SUPER_ADMIN' && (
+                        <td className="px-5 py-4">
+                          {getRoleBadge(cred.user?.role)}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {(cred.user as any)?.companyName ? (
+                            <span className="font-medium text-black flex items-center gap-1.5 text-xs">
+                              <Building2 className="h-3.5 w-3.5 text-neutral-500" />
+                              {(cred.user as any).companyName}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-neutral-500 italic">White Ink Design Studio</span>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="font-mono text-sm bg-gold-50/60 px-3 py-1.5 rounded-lg border border-gold-300 text-black select-all min-w-[150px] tracking-wider font-semibold">
+                              {isRevealed ? cred.plaintextPassword : '••••••••••••'}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => toggleReveal(cred.id)}
+                              className="p-1.5 text-neutral-600 hover:text-black hover:bg-gold-100 rounded-md transition-colors cursor-pointer"
+                              title={isRevealed ? 'Mask password' : 'Show password'}
+                            >
+                              {isRevealed ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </td>
+
                         <td className="px-5 py-4 text-xs text-neutral-700">
                           {cred.createdBy ? (
                             <div>
@@ -246,30 +303,129 @@ export const CredentialsPage: React.FC = () => {
                             <span className="text-neutral-400 italic">System Auto</span>
                           )}
                         </td>
+
+                        <td className="px-5 py-4 text-xs text-neutral-600 whitespace-nowrap">
+                          <div>{new Date(cred.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
+                          <div className="text-[11px] text-neutral-500">
+                            {new Date(cred.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </td>
+
+                        <td className="px-5 py-4 text-right whitespace-nowrap">
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isEditingThis) {
+                                  setActiveEditCredId(null);
+                                  setCustomPassword('');
+                                  setUpdateError(null);
+                                } else {
+                                  setActiveEditCredId(cred.id);
+                                  setCustomPassword('');
+                                  setUpdateError(null);
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                                isEditingThis
+                                  ? 'bg-neutral-800 text-white border-neutral-900'
+                                  : 'bg-white hover:bg-gold-50 text-black border-gold-300 btn-hover-lift'
+                              }`}
+                            >
+                              <Key className="h-3.5 w-3.5 text-gold-700" />
+                              Change Password
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(cred)}
+                              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
+                                isJustCopied
+                                  ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
+                                  : 'bg-gold-400 hover:bg-gold-500 text-black border-gold-600 btn-hover-lift'
+                              }`}
+                            >
+                              {isJustCopied ? <Check className="h-3.5 w-3.5 stroke-[2.5]" /> : <Copy className="h-3.5 w-3.5" />}
+                              {isJustCopied ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {/* Inline Change Password Expansion Row */}
+                      {isEditingThis && (
+                        <tr className="bg-gold-50/90 border-y-2 border-gold-400 animate-gold-fade-in">
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-black text-xs sm:text-sm">
+                                    Update Password for {cred.user?.name || cred.email}
+                                  </span>
+                                  <span className="text-[11px] font-mono text-neutral-600 bg-white px-2 py-0.5 rounded border border-gold-200">
+                                    {cred.email}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-neutral-600 mt-0.5">
+                                  Generate a random password or type a custom password (minimum 6 characters).
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <button
+                                  type="button"
+                                  disabled={isUpdating}
+                                  onClick={() => handleUpdatePassword(cred, undefined)}
+                                  className="btn-primary inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg cursor-pointer shadow-xs btn-hover-lift"
+                                >
+                                  {isUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                                  Generate Random Password
+                                </button>
+
+                                <span className="text-xs font-bold text-neutral-400">OR</span>
+
+                                <div className="flex items-center gap-1.5">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter custom password..."
+                                    value={customPassword}
+                                    onChange={(e) => setCustomPassword(e.target.value)}
+                                    className="px-3 py-1.5 text-xs bg-white border border-gold-300 rounded-lg text-black focus:outline-none focus:ring-1 focus:ring-gold-500 font-mono min-w-[160px]"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={isUpdating || customPassword.trim().length < 6}
+                                    onClick={() => handleUpdatePassword(cred, customPassword.trim())}
+                                    className="px-3 py-1.5 text-xs font-bold text-black bg-gold-400 hover:bg-gold-500 border border-gold-600 rounded-lg transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
+                                  >
+                                    Apply
+                                  </button>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setActiveEditCredId(null);
+                                    setCustomPassword('');
+                                    setUpdateError(null);
+                                  }}
+                                  className="px-3 py-1.5 text-xs font-semibold text-neutral-700 bg-white border border-gold-200 hover:bg-gold-100 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+
+                            {updateError && (
+                              <div className="mt-2.5 flex items-center gap-1.5 text-xs text-rose-800 font-medium">
+                                <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                                {updateError}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
                       )}
-
-                      <td className="px-5 py-4 text-xs text-neutral-600 whitespace-nowrap">
-                        <div>{new Date(cred.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}</div>
-                        <div className="text-[11px] text-neutral-500">
-                          {new Date(cred.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-right whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(cred)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border transition-all cursor-pointer shadow-2xs ${
-                            isJustCopied
-                              ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
-                              : 'bg-gold-400 hover:bg-gold-500 text-black border-gold-600 btn-hover-lift'
-                          }`}
-                        >
-                          {isJustCopied ? <Check className="h-3.5 w-3.5 stroke-[2.5]" /> : <Copy className="h-3.5 w-3.5" />}
-                          {isJustCopied ? 'Copied' : 'Copy'}
-                        </button>
-                      </td>
-                    </tr>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

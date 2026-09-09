@@ -10,37 +10,43 @@ import {
   AtSign,
   Trash2,
   Users,
-  Smile,
-  Paperclip,
-  CheckCheck,
-  Megaphone,
-  Sparkles,
-  Volume2,
+  Building2,
 } from 'lucide-react';
 
 export const ChatPage: React.FC = () => {
   const { user } = useAuth();
+  const [channels, setChannels] = useState<{ id: string; name: string; type: 'internal' | 'client' }[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [currentChannel, setCurrentChannel] = useState('general');
+  const [currentChannel, setCurrentChannel] = useState<string>('');
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const channels = [
-    { id: 'general', name: 'General', icon: Hash, desc: 'Company-wide team discussions' },
-    { id: 'announcements', name: 'Announcements', icon: Megaphone, desc: 'Official updates and policy broadcasts' },
-    { id: 'engineering', name: 'Engineering', icon: Hash, desc: 'Tech stack, code reviews & architecture' },
-    { id: 'design', name: 'Design & UX', icon: Hash, desc: 'Figma drafts, design systems & assets' },
-    { id: 'watercooler', name: 'Watercooler', icon: Smile, desc: 'Casual hangout, memes & off-topic' },
-  ];
-
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  useEffect(() => {
+    let isMounted = true;
+    api.getChatChannels()
+      .then((chs) => {
+        if (isMounted) {
+          setChannels(chs);
+          if (chs.length > 0 && !currentChannel) {
+            setCurrentChannel(chs[0].id);
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching chat channels:', err));
+
+    api.getUsers().then(setUsers).catch(() => []);
+    return () => { isMounted = false; };
+  }, []);
+
   const loadMessages = async (silent = false) => {
+    if (!currentChannel) return;
     try {
       if (!silent) setLoading(true);
       const res = await api.getChatMessages(currentChannel);
@@ -53,8 +59,8 @@ export const ChatPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!currentChannel) return;
     loadMessages();
-    api.getUsers().then(setUsers).catch(() => []);
 
     // Polling every 4 seconds for chat updates
     const interval = setInterval(() => {
@@ -124,7 +130,7 @@ export const ChatPage: React.FC = () => {
             </div>
             <div className="space-y-1">
               {channels.map((ch) => {
-                const Icon = ch.icon;
+                const Icon = ch.type === 'client' ? Building2 : Hash;
                 const isActive = currentChannel === ch.id;
                 return (
                   <button
@@ -137,8 +143,8 @@ export const ChatPage: React.FC = () => {
                         : 'border-transparent text-black/70 hover:bg-gold-100 hover:text-black'
                     }`}
                   >
-                    <Icon className={`h-4 w-4 ${isActive ? 'text-black' : 'text-gold-700'}`} />
-                    <span>{ch.name}</span>
+                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-black' : 'text-gold-700'}`} />
+                    <span className="truncate">{ch.name}</span>
                   </button>
                 );
               })}
@@ -178,27 +184,35 @@ export const ChatPage: React.FC = () => {
       {/* Main Chat Stream */}
       <div className="flex-1 flex flex-col justify-between bg-white min-w-0">
         {/* Chat Channel Header */}
-        <div className="px-6 py-3.5 border-b border-gold-200 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-2">
-            <Hash className="h-5 w-5 text-gold-600 stroke-[2.5]" />
-            <div>
-              <h2 className="text-sm font-extrabold text-black capitalize">#{currentChannel}</h2>
-              <p className="text-[11px] text-black/60 font-medium">
-                {channels.find((c) => c.id === currentChannel)?.desc}
-              </p>
-            </div>
-          </div>
+        {(() => {
+          const activeChannel = channels.find((c) => c.id === currentChannel);
+          const HeaderIcon = activeChannel?.type === 'client' ? Building2 : Hash;
+          return (
+            <div className="px-6 py-3.5 border-b border-gold-200 flex items-center justify-between bg-white">
+              <div className="flex items-center gap-2">
+                <HeaderIcon className="h-5 w-5 text-gold-600 stroke-[2.5]" />
+                <div>
+                  <h2 className="text-sm font-extrabold text-black">
+                    {activeChannel ? activeChannel.name : currentChannel ? `#${currentChannel}` : 'Select a channel'}
+                  </h2>
+                  <p className="text-[11px] text-black/60 font-medium">
+                    {activeChannel?.type === 'client' ? 'Client workspace channel' : 'Internal team & staff channel'}
+                  </p>
+                </div>
+              </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => insertMention('all')}
-              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gold-100 hover:bg-gold-200 text-black border border-gold-300 transition-colors cursor-pointer shadow-2xs"
-            >
-              Tag @all
-            </button>
-          </div>
-        </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => insertMention('all')}
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-gold-100 hover:bg-gold-200 text-black border border-gold-300 transition-colors cursor-pointer shadow-2xs"
+                >
+                  Tag @all
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Message History */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
@@ -210,7 +224,9 @@ export const ChatPage: React.FC = () => {
           ) : messages.length === 0 ? (
             <div className="p-12 text-center text-black/50">
               <MessageSquare className="h-8 w-8 text-gold-500 mx-auto mb-2" />
-              <h3 className="text-sm font-extrabold text-black">No messages in #{currentChannel}</h3>
+              <h3 className="text-sm font-extrabold text-black">
+                No messages in {channels.find((c) => c.id === currentChannel)?.name || currentChannel || 'channel'}
+              </h3>
               <p className="text-xs mt-1 font-medium">Be the first to post a message or start a discussion.</p>
             </div>
           ) : (
@@ -273,7 +289,7 @@ export const ChatPage: React.FC = () => {
           <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-gold-300 focus-within:ring-2 focus-within:ring-gold-500 focus-within:border-gold-500 shadow-xs">
             <input
               type="text"
-              placeholder={`Message #${currentChannel}...`}
+              placeholder={`Message ${channels.find((c) => c.id === currentChannel)?.name || currentChannel || 'channel'}...`}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               className="flex-1 px-2 py-1 text-sm bg-transparent border-none focus:outline-hidden text-black placeholder:text-black/40 font-medium"

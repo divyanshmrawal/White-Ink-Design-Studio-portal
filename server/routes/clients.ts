@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { db } from '../db.ts';
-import { requireAuth, requireRoles, AuthenticatedRequest } from '../auth.ts';
+import { requireAuth, requireRoles, AuthenticatedRequest, hashPassword, generateStrongPassword } from '../auth.ts';
 
 export const clientsRouter = Router();
 
@@ -64,6 +64,83 @@ clientsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
     projects: clientProjects,
   });
 });
+
+// POST /api/clients/with-login (SUPER_ADMIN and ADMIN)
+clientsRouter.post(
+  '/with-login',
+  requireAuth,
+  requireRoles(['SUPER_ADMIN', 'ADMIN']),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const currentUser = req.user!;
+      const { name, company, email, phone, address } = req.body;
+
+      if (!name || !company || !email) {
+        return res.status(400).json({ message: 'Name, company, and email are required fields.' });
+      }
+
+      const cleanEmail = email.trim().toLowerCase();
+
+      // Check if client already exists
+      const existingClient = db.getClientByEmail(cleanEmail);
+      if (existingClient) {
+        return res.status(409).json({ message: 'A client organization with this email already exists.' });
+      }
+
+      // Check if user already exists
+      const existingUser = db.getUserByEmail(cleanEmail);
+      if (existingUser) {
+        return res.status(409).json({ message: 'A user account with this email address already exists.' });
+      }
+
+      // 1. Create the Client record
+      const clientId = `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newClient = db.createClient({
+        id: clientId,
+        name: name.trim(),
+        company: company.trim(),
+        email: cleanEmail,
+        phone: phone ? phone.trim() : null,
+        address: address ? address.trim() : null,
+      });
+
+      // 2. Auto-generate strong password
+      const plaintextPassword = generateStrongPassword(12);
+      const passwordHash = await hashPassword(plaintextPassword);
+
+      // 3. Create User record with role CLIENT_ADMIN, linked clientId, mustChangePassword: false
+      const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const newUser = db.createUser({
+        id: userId,
+        name: name.trim(),
+        email: cleanEmail,
+        passwordHash,
+        role: 'CLIENT_ADMIN',
+        clientId: newClient.id,
+        profileImage: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name.trim())}`,
+        mustChangePassword: false,
+      });
+
+      // 4. Upsert IssuedCredential record
+      db.upsertIssuedCredential({
+        userId: newUser.id,
+        email: cleanEmail,
+        plaintextPassword,
+        createdById: currentUser.id,
+      });
+
+      // 5. Return created client AND generated credentials
+      return res.status(201).json({
+        ...newClient,
+        generatedPassword: plaintextPassword,
+        loginEmail: cleanEmail,
+      });
+    } catch (error: any) {
+      console.error('Error creating client with login:', error);
+      return res.status(500).json({ message: 'Failed to create client organization and login account.' });
+    }
+  }
+);
 
 // POST /api/clients (SUPER_ADMIN and ADMIN)
 clientsRouter.post('/', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {

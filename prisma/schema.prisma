@@ -515,7 +515,7 @@ model AccessRequest {
 
 model IssuedCredential {
   id                String   @id @default(uuid())
-  userId            String
+  userId            String   @unique
   email             String
   plaintextPassword String
   createdById       String
@@ -524,7 +524,6 @@ model IssuedCredential {
   user              User     @relation("CredentialRecipient", fields: [userId], references: [id], onDelete: Cascade)
   createdBy         User     @relation("CredentialIssuer", fields: [createdById], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@index([createdById])
   @@index([email])
   @@map("issued_credentials")

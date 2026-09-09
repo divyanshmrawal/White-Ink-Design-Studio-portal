@@ -159,7 +159,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
           <div className="flex items-center gap-2.5">
             <UserCheck className="h-4 w-4 text-gold-800 shrink-0" />
             <span>
-              Admins and Client Admins must be provisioned through the <strong>Access Requests & Approval</strong> workflow. Direct user creation is disabled for Super Admin.
+              Admins must be provisioned through the <strong>Access Requests & Approval</strong> workflow. Client accounts are created directly from the Clients page.
             </span>
           </div>
           {onNavigate && (

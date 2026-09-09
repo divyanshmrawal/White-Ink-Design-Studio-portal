@@ -102,8 +102,13 @@ export const api = {
       body: JSON.stringify({ reason }),
     }),
 
-  // Credentials Vault (Part C)
+  // Credentials Vault
   getIssuedCredentials: () => request<IssuedCredential[]>('/credentials'),
+  updateCredentialPassword: (userId: string, newPassword?: string) =>
+    request<{ message: string; plaintextPassword: string }>(`/credentials/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newPassword }),
+    }),
 
   // Users
   getUsers: (params?: { search?: string; role?: string }) => {
@@ -143,6 +148,12 @@ export const api = {
 
   createClient: (payload: { name: string; company: string; email: string; phone?: string; address?: string }) =>
     request<Client>('/clients', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  createClientWithLogin: (payload: { name: string; company: string; email: string; phone?: string; address?: string }) =>
+    request<Client & { generatedPassword?: string; loginEmail?: string }>('/clients/with-login', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
@@ -647,7 +658,9 @@ export const api = {
   },
 
   // Team Chat
-  getChatMessages: (channel: string = 'general', limit: number = 100) =>
+  getChatChannels: () => request<{ id: string; name: string; type: 'internal' | 'client' }[]>('/chat/channels'),
+
+  getChatMessages: (channel: string = 'internal', limit: number = 100) =>
     request<any[]>(`/chat/messages?channel=${encodeURIComponent(channel)}&limit=${limit}`),
 
   postChatMessage: (payload: { content: string; channel?: string; attachments?: any }) =>

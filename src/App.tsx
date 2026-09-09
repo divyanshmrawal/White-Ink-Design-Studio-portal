@@ -198,7 +198,7 @@ function MainApp() {
               />
             )
           ) : currentPath === '/credentials' ? (
-            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CLIENT_ADMIN' ? (
+            user.role === 'SUPER_ADMIN' ? (
               <CredentialsPage />
             ) : (
               <DashboardPage

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Client } from '../types';
 import { Title, Muted, FormLabel } from '../components/typography';
-import { User, Mail, Phone, Building2, Camera, Key, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { User, Mail, Phone, Building2, Camera, Loader2 } from 'lucide-react';
 
 export const ClientSettingsPage: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -19,18 +19,6 @@ export const ClientSettingsPage: React.FC = () => {
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
-
-  // Password form state
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Load current user data
   useEffect(() => {
@@ -83,37 +71,6 @@ export const ClientSettingsPage: React.FC = () => {
     }
   };
 
-  // Password change handler
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordSuccess(null);
-    setPasswordError(null);
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError('All password fields are required.');
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters long.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirmation do not match.');
-      return;
-    }
-    setPasswordLoading(true);
-    try {
-      const res = await api.changePassword({ currentPassword, newPassword });
-      setPasswordSuccess(res.message || 'Password changed successfully.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (err: any) {
-      setPasswordError(err.message || 'Failed to change password.');
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
   const avatarSrc =
     profileImage ||
     `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(user?.name || 'User')}`;
@@ -124,7 +81,7 @@ export const ClientSettingsPage: React.FC = () => {
       <div>
         <Title className="text-2xl font-bold tracking-tight text-black">Account Settings</Title>
         <Muted className="text-sm text-neutral-600 mt-1">
-          Manage your profile details and account security
+          Manage your company profile details and contact information
         </Muted>
       </div>
 
@@ -255,122 +212,6 @@ export const ClientSettingsPage: React.FC = () => {
             >
               {profileLoading && <Loader2 className="h-4 w-4 animate-spin" />}
               {profileLoading ? 'Saving...' : 'Save Profile'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Change Password Card */}
-      <div className="bg-white rounded-xl border border-gold-300 shadow-xs">
-        <div className="px-6 py-4 border-b border-gold-200">
-          <h2 className="text-sm font-bold text-black flex items-center gap-2">
-            <Key className="h-4 w-4 text-gold-600 stroke-[2.5]" />
-            Change Password
-          </h2>
-          <p className="text-xs text-neutral-600 mt-0.5">
-            Confirm your current password before setting a new one
-          </p>
-        </div>
-
-        <form onSubmit={handlePasswordChange} className="p-6 space-y-4">
-          <div>
-            <FormLabel className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1">
-              Current Password <span className="text-rose-500">*</span>
-            </FormLabel>
-            <div className="relative">
-              <input
-                type={showCurrentPassword ? 'text' : 'password'}
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                className="w-full pl-3.5 pr-10 py-2 text-sm bg-gold-50/30 border border-gold-300 rounded-lg text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
-              />
-              <button
-                type="button"
-                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
-                title={showCurrentPassword ? 'Hide password' : 'Show password'}
-              >
-                {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <FormLabel className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1">
-                New Password <span className="text-rose-500">*</span>
-              </FormLabel>
-              <div className="relative">
-                <input
-                  type={showNewPassword ? 'text' : 'password'}
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Minimum 6 characters"
-                  autoComplete="new-password"
-                  className="w-full pl-3.5 pr-10 py-2 text-sm bg-gold-50/30 border border-gold-300 rounded-lg text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
-                  title={showNewPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div>
-              <FormLabel className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1">
-                Confirm New Password <span className="text-rose-500">*</span>
-              </FormLabel>
-              <div className="relative">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repeat new password"
-                  autoComplete="new-password"
-                  className="w-full pl-3.5 pr-10 py-2 text-sm bg-gold-50/30 border border-gold-300 rounded-lg text-black focus:outline-none focus:bg-white focus:ring-1 focus:ring-gold-500 focus:border-gold-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-black p-0.5 cursor-pointer"
-                  title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Feedback */}
-          {passwordSuccess && (
-            <div className="flex items-center gap-2 p-3 text-sm text-black bg-gold-50 border border-gold-300 font-medium rounded-lg">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-gold-700" />
-              {passwordSuccess}
-            </div>
-          )}
-          {passwordError && (
-            <div className="flex items-center gap-2 p-3 text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {passwordError}
-            </div>
-          )}
-
-          <div className="flex justify-end pt-1">
-            <button
-              type="submit"
-              disabled={passwordLoading}
-              className="btn-primary inline-flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg disabled:opacity-60 shadow-xs cursor-pointer"
-            >
-              {passwordLoading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {passwordLoading ? 'Updating...' : 'Update Password'}
             </button>
           </div>
         </form>

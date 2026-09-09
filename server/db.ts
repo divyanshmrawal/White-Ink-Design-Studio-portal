@@ -3225,6 +3225,72 @@ class DatabaseService {
 
     return newCred;
   }
+
+  public upsertIssuedCredential(cred: {
+    userId: string;
+    email: string;
+    plaintextPassword: string;
+    createdById: string;
+  }) {
+    const existingIndex = this.data.issuedCredentials.findIndex((c) => c.userId === cred.userId);
+    const now = new Date().toISOString();
+
+    if (existingIndex !== -1) {
+      this.data.issuedCredentials[existingIndex] = {
+        ...this.data.issuedCredentials[existingIndex],
+        email: cred.email,
+        plaintextPassword: cred.plaintextPassword,
+        createdById: cred.createdById,
+        createdAt: now,
+      };
+
+      if (prisma && this.isPrismaActive) {
+        const p = prisma as any;
+        if (p.issuedCredential) {
+          p.issuedCredential
+            .upsert({
+              where: { userId: cred.userId },
+              update: {
+                email: cred.email,
+                plaintextPassword: cred.plaintextPassword,
+                createdById: cred.createdById,
+                createdAt: new Date(now),
+              },
+              create: {
+                id: this.data.issuedCredentials[existingIndex].id,
+                userId: cred.userId,
+                email: cred.email,
+                plaintextPassword: cred.plaintextPassword,
+                createdById: cred.createdById,
+                createdAt: new Date(now),
+              },
+            })
+            .catch(() => {});
+        }
+      }
+
+      return this.data.issuedCredentials[existingIndex];
+    } else {
+      return this.createIssuedCredential(cred);
+    }
+  }
+
+  // --- CHAT ACCESSIBILITY ---
+  public getAccessibleClientIdsForTeamMember(userId: string): string[] {
+    const memberProjectIds = new Set(
+      this.getProjectMembersByUserId(userId).map((pm) => pm.projectId)
+    );
+    this.getTasks()
+      .filter((t) => t.assignedToId === userId)
+      .forEach((t) => memberProjectIds.add(t.projectId));
+
+    const clientIds = new Set<string>();
+    this.getProjects()
+      .filter((p) => memberProjectIds.has(p.id) && p.clientId)
+      .forEach((p) => clientIds.add(p.clientId));
+
+    return Array.from(clientIds);
+  }
 }
 
 export const db = new DatabaseService();

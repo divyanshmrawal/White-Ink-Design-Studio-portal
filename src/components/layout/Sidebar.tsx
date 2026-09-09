@@ -18,6 +18,7 @@ import {
   Award,
   MessageSquare,
   Settings,
+  KeyRound,
 } from 'lucide-react';
 import { BrandLogo } from '../common/BrandLogo';
 
@@ -164,6 +165,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Users,
       badge: 'Admin',
       show: isSuperAdminOrAdmin,
+      category: 'MANAGEMENT',
+    },
+    {
+      name: 'Credentials Vault',
+      path: '/credentials',
+      icon: KeyRound,
+      badge: 'Super Admin',
+      show: role === 'SUPER_ADMIN',
       category: 'MANAGEMENT',
     },
     {

@@ -20,14 +20,10 @@ accessRequestsRouter.post('/', async (req, res) => {
       return res.status(400).json({ message: 'Name, email, and requested role are required.' });
     }
 
-    if (requestedRole !== 'ADMIN' && requestedRole !== 'CLIENT_ADMIN') {
+    if (requestedRole !== 'ADMIN') {
       return res.status(400).json({
-        message: 'Invalid requested role. You can only request access as an Admin or Client Admin.',
+        message: 'Invalid requested role. Only Admin staff access requests are permitted.',
       });
-    }
-
-    if (requestedRole === 'CLIENT_ADMIN' && (!companyName || !companyName.trim())) {
-      return res.status(400).json({ message: 'Company name is required for Client Admin requests.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -51,8 +47,8 @@ accessRequestsRouter.post('/', async (req, res) => {
     const newRequest = db.createAccessRequest({
       name: name.trim(),
       email: cleanEmail,
-      requestedRole: requestedRole as Role,
-      companyName: requestedRole === 'CLIENT_ADMIN' ? companyName.trim() : null,
+      requestedRole: 'ADMIN',
+      companyName: null,
       status: 'PENDING',
     });
 
@@ -131,23 +127,7 @@ accessRequestsRouter.post(
       const passwordHash = await hashPassword(plaintextPassword);
       const now = new Date().toISOString();
 
-      let assignedClientId: string | null = null;
-
-      // If CLIENT_ADMIN, create Client organization first
-      if (accessRequest.requestedRole === 'CLIENT_ADMIN') {
-        const clientId = `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const orgName = accessRequest.companyName?.trim() || `${accessRequest.name.trim()}'s Company`;
-
-        db.createClient({
-          id: clientId,
-          name: accessRequest.name.trim(),
-          company: orgName,
-          email: cleanEmail,
-        });
-        assignedClientId = clientId;
-      }
-
-      // Create authorized User account with mustChangePassword: true
+      // Create authorized User account with mustChangePassword: true (Admins must change on first login)
       const userId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const newUser = db.createUser({
         id: userId,
@@ -155,7 +135,7 @@ accessRequestsRouter.post(
         email: cleanEmail,
         passwordHash,
         role: accessRequest.requestedRole,
-        clientId: assignedClientId,
+        clientId: null,
         profileImage: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(accessRequest.name.trim())}`,
         mustChangePassword: true,
       });
@@ -168,7 +148,7 @@ accessRequestsRouter.post(
       });
 
       // Store generated plaintext credentials in IssuedCredential vault
-      const issuedCred = db.createIssuedCredential({
+      const issuedCred = db.upsertIssuedCredential({
         userId: newUser.id,
         email: cleanEmail,
         plaintextPassword,

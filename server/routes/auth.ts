@@ -119,6 +119,13 @@ authRouter.get('/me', requireAuth, (req: AuthenticatedRequest, res: Response) =>
 authRouter.post('/change-password', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const currentUser = req.user!;
+
+    if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
+      return res.status(403).json({
+        message: 'Clients cannot change their own password. Please contact your account administrator.',
+      });
+    }
+
     const { currentPassword, newPassword } = req.body;
 
     if (!newPassword) {
@@ -153,6 +160,13 @@ authRouter.post('/change-password', requireAuth, async (req: AuthenticatedReques
     if (!updated) {
       return res.status(500).json({ message: 'Failed to update password.' });
     }
+
+    db.upsertIssuedCredential({
+      userId: currentUser.id,
+      email: currentUser.email,
+      plaintextPassword: newPassword,
+      createdById: currentUser.id,
+    });
 
     return res.json({
       message: 'Password updated successfully.',
