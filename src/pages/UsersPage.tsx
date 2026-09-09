@@ -53,7 +53,6 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
     if (currentUser?.id === target.id) return true;
     if (currentUser?.role === 'SUPER_ADMIN') return target.role === 'ADMIN' || target.role === 'CLIENT_ADMIN';
     if (currentUser?.role === 'ADMIN') return target.role === 'TEAM_MEMBER';
-    if (currentUser?.role === 'CLIENT_ADMIN') return target.role === 'CLIENT' && target.clientId === currentUser.clientId;
     return false;
   };
 
@@ -61,7 +60,6 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
     if (currentUser?.id === target.id) return false;
     if (currentUser?.role === 'SUPER_ADMIN') return target.role === 'ADMIN' || target.role === 'CLIENT_ADMIN';
     if (currentUser?.role === 'ADMIN') return target.role === 'TEAM_MEMBER';
-    if (currentUser?.role === 'CLIENT_ADMIN') return target.role === 'CLIENT' && target.clientId === currentUser.clientId;
     return false;
   };
 
@@ -119,13 +117,9 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="section-heading text-heading">
-            {currentUser?.role === 'CLIENT_ADMIN' ? 'Company Team' : 'User Management'}
-          </h1>
+          <h1 className="section-heading text-heading">User Management</h1>
           <p className="muted mt-1">
-            {currentUser?.role === 'CLIENT_ADMIN'
-              ? 'Manage company team members and their client portal access'
-              : 'Manage system access credentials, role-based authorizations, and staff profiles'}
+            Manage system access credentials, role-based authorizations, and staff profiles
           </p>
         </div>
 
@@ -148,7 +142,7 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
             className="btn-primary btn-hover-lift inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
-            {currentUser?.role === 'CLIENT_ADMIN' ? 'Add Team Member' : 'Add User'}
+            Add User
           </button>
         )}
       </div>
@@ -193,13 +187,9 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
           className="w-full sm:w-auto px-3 py-1.5 text-xs font-medium bg-gold-50/50 border border-gold-200 rounded-lg text-heading focus:outline-hidden focus:bg-white focus:ring-1 focus:ring-gold-500 cursor-pointer"
         >
           <option value="ALL">All Roles</option>
-          {currentUser?.role !== 'CLIENT_ADMIN' && (
-            <>
-              <option value="SUPER_ADMIN">Super Admin</option>
-              <option value="ADMIN">Admin</option>
-              <option value="TEAM_MEMBER">Team Member</option>
-            </>
-          )}
+          <option value="SUPER_ADMIN">Super Admin</option>
+          <option value="ADMIN">Admin</option>
+          <option value="TEAM_MEMBER">Team Member</option>
           <option value="CLIENT_ADMIN">Client Admin</option>
           <option value="CLIENT">Client</option>
         </select>
@@ -211,13 +201,9 @@ export const UsersPage: React.FC<UsersPageProps> = ({ onNavigate }) => {
       ) : users.length === 0 ? (
         <EmptyState
           title="No users found"
-          description={
-            currentUser?.role === 'CLIENT_ADMIN'
-              ? 'No team members found for your company. Add team members to invite them.'
-              : 'No users matched your query. Add a new user to invite them to the platform.'
-          }
+          description="No users matched your query. Add a new user to invite them to the platform."
           icon={Users}
-          actionLabel={currentUser?.role === 'CLIENT_ADMIN' ? 'Add Team Member' : 'Add User'}
+          actionLabel="Add User"
           onAction={() => {
             setEditingUser(null);
             setIsModalOpen(true);

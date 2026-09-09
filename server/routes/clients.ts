@@ -65,11 +65,11 @@ clientsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
   });
 });
 
-// POST /api/clients/with-login (SUPER_ADMIN and ADMIN)
+// POST /api/clients/with-login (SUPER_ADMIN)
 clientsRouter.post(
   '/with-login',
   requireAuth,
-  requireRoles(['SUPER_ADMIN', 'ADMIN']),
+  requireRoles(['SUPER_ADMIN']),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const currentUser = req.user!;
@@ -142,8 +142,8 @@ clientsRouter.post(
   }
 );
 
-// POST /api/clients (SUPER_ADMIN and ADMIN)
-clientsRouter.post('/', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+// POST /api/clients (SUPER_ADMIN)
+clientsRouter.post('/', requireAuth, requireRoles(['SUPER_ADMIN']), (req: AuthenticatedRequest, res: Response) => {
   try {
     const { name, company, email, phone, address } = req.body;
 
@@ -184,7 +184,7 @@ clientsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
       return res.status(404).json({ message: 'Client not found.' });
     }
 
-    const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
+    const isAdmin = currentUser.role === 'SUPER_ADMIN';
     const isOwnClient =
       (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') &&
       ((currentUser.clientId && target.id === currentUser.clientId) || target.id === currentUser.id || target.email.toLowerCase() === currentUser.email.toLowerCase());
@@ -217,7 +217,7 @@ clientsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
 });
 
 // DELETE /api/clients/:id
-clientsRouter.delete('/:id', requireAuth, requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+clientsRouter.delete('/:id', requireAuth, requireRoles(['SUPER_ADMIN']), (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const target = db.getClientById(id);
   if (!target) {

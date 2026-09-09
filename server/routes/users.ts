@@ -18,14 +18,15 @@ usersRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response) => 
   let users = db.getUsers();
 
   // Scoping
-  if (currentUser.role === 'CLIENT_ADMIN') {
-    // CLIENT_ADMIN: strictly scoped to members of their own client company
-    users = users.filter((u) => u.clientId === currentUser.clientId);
-  } else if (currentUser.role === 'CLIENT') {
-    // Existing CLIENT project-based scoping (untouched)
+  if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
+    // Client project-based scoping
     const clientProjects = db.getProjects().filter((p) => {
       const client = db.getClientById(p.clientId);
-      return (client && client.email.toLowerCase() === currentUser.email.toLowerCase()) || p.clientId === currentUser.id;
+      return (
+        (currentUser.clientId && p.clientId === currentUser.clientId) ||
+        (client && client.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        p.clientId === currentUser.id
+      );
     });
     const allowedProjectIds = new Set(clientProjects.map((p) => p.id));
     const allowedUserIds = new Set<string>();
@@ -67,7 +68,7 @@ usersRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) 
 usersRouter.post(
   '/',
   requireAuth,
-  requireRoles(['ADMIN', 'CLIENT_ADMIN']),
+  requireRoles(['ADMIN']),
   async (req: AuthenticatedRequest, res: Response) => {
     try {
       const currentUser = req.user!;
@@ -86,25 +87,8 @@ usersRouter.post(
             message: 'Forbidden: Admins can only create Team Member accounts.',
           });
         }
-      } else if (currentUser.role === 'CLIENT_ADMIN') {
-        if (role !== 'CLIENT') {
-          return res.status(403).json({
-            message: 'Forbidden: Client Admins can only create Client accounts.',
-          });
-        }
-        if (!currentUser.clientId) {
-          return res.status(400).json({
-            message: 'Current Client Admin is not linked to a Client company.',
-          });
-        }
-        if (req.body.clientId && req.body.clientId !== currentUser.clientId) {
-          return res.status(403).json({
-            message: 'Forbidden: Client Admins cannot create users for other client companies.',
-          });
-        }
-        assignedClientId = currentUser.clientId;
       } else {
-        return res.status(403).json({ message: 'Forbidden: Direct user creation is restricted to Admins and Client Admins.' });
+        return res.status(403).json({ message: 'Forbidden: Direct user creation is restricted to Admins.' });
       }
 
       const cleanEmail = email.trim().toLowerCase();
@@ -176,16 +160,6 @@ usersRouter.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Re
             message: 'Forbidden: Admins can only modify Team Member accounts.',
           });
         }
-      } else if (currentUser.role === 'CLIENT_ADMIN') {
-        if (
-          targetUser.role !== 'CLIENT' ||
-          !currentUser.clientId ||
-          targetUser.clientId !== currentUser.clientId
-        ) {
-          return res.status(403).json({
-            message: 'Forbidden: Client Admins can only modify Client accounts in their own company.',
-          });
-        }
       } else {
         return res.status(403).json({ message: 'Forbidden: You cannot modify other users.' });
       }
@@ -206,12 +180,6 @@ usersRouter.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Re
         if (role !== 'TEAM_MEMBER') {
           return res.status(403).json({
             message: 'Forbidden: Admins can only assign Team Member role.',
-          });
-        }
-      } else if (currentUser.role === 'CLIENT_ADMIN') {
-        if (role !== 'CLIENT') {
-          return res.status(403).json({
-            message: 'Forbidden: Client Admins can only assign Client role.',
           });
         }
       } else {
@@ -266,7 +234,7 @@ usersRouter.patch('/:id', requireAuth, async (req: AuthenticatedRequest, res: Re
 usersRouter.delete(
   '/:id',
   requireAuth,
-  requireRoles(['SUPER_ADMIN', 'ADMIN', 'CLIENT_ADMIN']),
+  requireRoles(['SUPER_ADMIN', 'ADMIN']),
   (req: AuthenticatedRequest, res: Response) => {
     const currentUser = req.user!;
     const { id } = req.params;
@@ -291,16 +259,6 @@ usersRouter.delete(
       if (targetUser.role !== 'TEAM_MEMBER') {
         return res.status(403).json({
           message: 'Forbidden: Admins can only delete Team Member accounts.',
-        });
-      }
-    } else if (currentUser.role === 'CLIENT_ADMIN') {
-      if (
-        targetUser.role !== 'CLIENT' ||
-        !currentUser.clientId ||
-        targetUser.clientId !== currentUser.clientId
-      ) {
-        return res.status(403).json({
-          message: 'Forbidden: Client Admins can only delete Client accounts in their own company.',
         });
       }
     } else {

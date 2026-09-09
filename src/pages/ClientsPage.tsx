@@ -34,7 +34,7 @@ export const ClientsPage: React.FC<ClientsPageProps> = () => {
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
+  const canManage = user?.role === 'SUPER_ADMIN';
 
   const loadClients = useCallback(async () => {
     setIsLoading(true);

@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       name: 'Milestones',
       path: '/milestones',
       icon: Flag,
-      show: true,
+      show: !isClient,
       category: 'GENERAL',
     },
     {
@@ -137,18 +137,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       category: 'GENERAL',
     },
     {
-      name: 'Company Team',
-      path: '/users',
-      icon: Users,
-      badge: 'Admin',
-      show: role === 'CLIENT_ADMIN',
-      category: 'MANAGEMENT',
-    },
-    {
       name: 'Clients',
       path: '/clients',
       icon: Building2,
-      show: isSuperAdminOrAdmin,
+      show: role === 'SUPER_ADMIN',
       category: 'MANAGEMENT',
     },
     {

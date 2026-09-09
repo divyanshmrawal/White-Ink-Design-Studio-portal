@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { Client } from '../types';
 import { Title, Muted, FormLabel } from '../components/typography';
-import { User, Mail, Phone, Building2, Camera, Loader2 } from 'lucide-react';
+import { User, Mail, Phone, Building2, Camera, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 export const ClientSettingsPage: React.FC = () => {
   const { user, refreshUser } = useAuth();

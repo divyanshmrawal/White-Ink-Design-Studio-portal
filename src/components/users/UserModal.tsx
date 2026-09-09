@@ -25,8 +25,6 @@ export const UserModal: React.FC<UserModalProps> = ({
     switch (currentUser?.role) {
       case 'ADMIN':
         return ['TEAM_MEMBER'];
-      case 'CLIENT_ADMIN':
-        return ['CLIENT'];
       case 'SUPER_ADMIN':
       default:
         return [];
@@ -34,7 +32,7 @@ export const UserModal: React.FC<UserModalProps> = ({
   };
 
   const allowedRoles = getAllowedRoles();
-  const defaultRole = allowedRoles[0] || (currentUser?.role === 'CLIENT_ADMIN' ? 'CLIENT' : 'TEAM_MEMBER');
+  const defaultRole = allowedRoles[0] || 'TEAM_MEMBER';
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

@@ -66,6 +66,13 @@ function MainApp() {
     }
   }, [user]);
 
+  // Redirect client roles away from /users if navigated directly
+  useEffect(() => {
+    if (user && (user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN') && currentPath === '/users') {
+      navigate('/dashboard');
+    }
+  }, [user, currentPath]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gold-50 flex items-center justify-center">
@@ -154,15 +161,15 @@ function MainApp() {
               />
             )
           ) : currentPath === '/clients' ? (
-            user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
+            user.role === 'SUPER_ADMIN' ? (
+              <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
+            ) : (
               <DashboardPage
                 onNavigate={navigate}
                 onOpenNewProject={() => setIsQuickProjectOpen(true)}
                 onOpenClientProject={() => setIsClientProjectOpen(true)}
                 onOpenNewTask={() => setIsQuickTaskOpen(true)}
               />
-            ) : (
-              <ClientsPage onNavigateToProjects={(clientId) => navigate(`/projects?client=${clientId}`)} />
             )
           ) : currentPath === '/client-settings' ? (
             user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN' ? (
@@ -187,7 +194,7 @@ function MainApp() {
               />
             )
           ) : currentPath === '/users' ? (
-            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CLIENT_ADMIN' ? (
+            user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' ? (
               <UsersPage onNavigate={navigate} />
             ) : (
               <DashboardPage
