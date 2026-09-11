@@ -33,6 +33,9 @@ import {
   RefreshCw,
   Lock,
   ShieldCheck,
+  Globe,
+  Folder,
+  ExternalLink,
 } from 'lucide-react';
 
 export const AdminSettingsPage: React.FC = () => {
@@ -118,6 +121,88 @@ export const AdminSettingsPage: React.FC = () => {
     }
   };
 
+  // Google Integration State (Super Admin Only)
+  const [googleStatus, setGoogleStatus] = useState<any>(null);
+  const [spreadsheetIdInput, setSpreadsheetIdInput] = useState('');
+  const [sheetNameInput, setSheetNameInput] = useState('');
+  const [savingGoogleSettings, setSavingGoogleSettings] = useState(false);
+  const [syncingAttendance, setSyncingAttendance] = useState(false);
+  const [googleFeedback, setGoogleFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const loadGoogleStatus = async () => {
+    if (user?.role !== 'SUPER_ADMIN') return;
+    try {
+      const status = await api.getGoogleStatus();
+      setGoogleStatus(status);
+      setSpreadsheetIdInput(status.sheetsAttendanceSpreadsheetId || '');
+      setSheetNameInput(status.sheetsAttendanceSheetName || 'Attendance_Log');
+    } catch (err: any) {
+      console.warn('Failed to load Google status:', err?.message);
+    }
+  };
+
+  const handleConnectGoogle = async () => {
+    try {
+      const res = await api.getGoogleConnectUrl();
+      if (res.url) {
+        window.location.href = res.url;
+      }
+    } catch (err: any) {
+      setGoogleFeedback({ type: 'error', message: err.message || 'Failed to start Google connection' });
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    if (!window.confirm('Disconnect the portal Google account? Google services (Drive, Calendar, Sheets, Gmail) will fall back to local offline modes.')) return;
+    try {
+      await api.disconnectGoogle();
+      setGoogleFeedback({ type: 'success', message: 'Google account disconnected. Fallbacks active.' });
+      loadGoogleStatus();
+    } catch (err: any) {
+      setGoogleFeedback({ type: 'error', message: err.message || 'Failed to disconnect Google' });
+    }
+  };
+
+  const handleSaveGoogleSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSavingGoogleSettings(true);
+      const res = await api.updateGoogleSettings({
+        sheetsAttendanceSpreadsheetId: spreadsheetIdInput.trim() || undefined,
+        sheetsAttendanceSheetName: sheetNameInput.trim() || undefined,
+      });
+      setGoogleFeedback({ type: 'success', message: 'Google integration settings saved.' });
+      setGoogleStatus(res.settings);
+    } catch (err: any) {
+      setGoogleFeedback({ type: 'error', message: err.message || 'Failed to save settings' });
+    } finally {
+      setSavingGoogleSettings(false);
+    }
+  };
+
+  const handleSyncAttendanceNow = async () => {
+    try {
+      setSyncingAttendance(true);
+      const res = await api.syncGoogleAttendance();
+      if (res.success) {
+        setGoogleFeedback({
+          type: 'success',
+          message: `Attendance synchronized: ${res.syncedCount} record(s) synced to Google Sheets.`,
+        });
+        loadGoogleStatus();
+      } else {
+        setGoogleFeedback({
+          type: 'error',
+          message: res.error || 'Attendance sync encountered an issue.',
+        });
+      }
+    } catch (err: any) {
+      setGoogleFeedback({ type: 'error', message: err.message || 'Failed to sync attendance to Google Sheets' });
+    } finally {
+      setSyncingAttendance(false);
+    }
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -135,12 +220,27 @@ export const AdminSettingsPage: React.FC = () => {
 
       const pStatus = await checkPushSupport();
       setPushStatus(pStatus);
+
+      if (user?.role === 'SUPER_ADMIN') {
+        loadGoogleStatus();
+      }
     } catch (err) {
       console.error('Error loading settings:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google') === 'connected') {
+      setGoogleFeedback({ type: 'success', message: 'Google account connected successfully! Portal services are now authorized.' });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (params.get('google_error')) {
+      setGoogleFeedback({ type: 'error', message: `Google authorization failed: ${params.get('google_error')}` });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -465,6 +565,151 @@ export const AdminSettingsPage: React.FC = () => {
               </p>
             )}
           </div>
+
+          {/* Super Admin Google Cloud & Workspace Foundation */}
+          {user?.role === 'SUPER_ADMIN' && (
+            <div className="bg-white rounded-xl border border-gold-300 p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-gold-200 pb-3">
+                <h2 className="text-base font-extrabold text-black flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-gold-600 stroke-[2.5]" />
+                  Google Cloud & Workspace Services
+                </h2>
+                <span
+                  className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                    googleStatus?.isConnected
+                      ? 'bg-gold-200 text-black border border-gold-400'
+                      : 'bg-amber-100 text-amber-900 border border-amber-300'
+                  }`}
+                >
+                  {googleStatus?.isConnected ? 'Connected' : 'Not Connected'}
+                </span>
+              </div>
+
+              <p className="text-xs text-black/70 font-medium leading-relaxed">
+                Connect the company owner/super admin Google account to automate Drive project folders, dynamic Google Meet links, Sheets attendance mirroring, and transactional Gmail notifications. Team members and clients use the portal without needing individual Google accounts.
+              </p>
+
+              {googleFeedback && (
+                <div
+                  className={`p-3 rounded-lg text-xs font-bold border flex items-center gap-2 ${
+                    googleFeedback.type === 'success'
+                      ? 'bg-gold-50 border-gold-300 text-black'
+                      : 'bg-rose-50 border-rose-300 text-rose-800'
+                  }`}
+                >
+                  {googleFeedback.type === 'success' ? (
+                    <CheckCircle2 className="h-4 w-4 text-gold-700 shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{googleFeedback.message}</span>
+                </div>
+              )}
+
+              {!googleStatus?.isConnected ? (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={handleConnectGoogle}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-600 text-black text-xs font-bold rounded-lg border border-gold-600 shadow-xs transition-colors cursor-pointer btn-hover-lift"
+                  >
+                    <Globe className="h-4 w-4" />
+                    Connect Google Account
+                  </button>
+                  <p className="text-[11px] text-black/50 font-semibold mt-1.5">
+                    Requires Google Cloud OAuth credentials configured in .env.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-1">
+                  <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-gold-50/60 rounded-lg border border-gold-200">
+                    <div>
+                      <div className="text-xs font-bold text-black flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-gold-600" />
+                        Connected Account: <span className="font-extrabold">{googleStatus.email}</span>
+                      </div>
+                      <div className="text-[11px] text-black/60 font-semibold mt-0.5">
+                        Active Services: Drive, Calendar, Meet, Gmail, Sheets
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleDisconnectGoogle}
+                      className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Disconnect
+                    </button>
+                  </div>
+
+                  {/* Drive Root Status */}
+                  <div className="text-xs border border-gold-200 rounded-lg p-3 bg-white">
+                    <div className="font-bold text-black flex items-center gap-1.5">
+                      <Folder className="h-4 w-4 text-gold-600" />
+                      Google Drive Root Folder
+                    </div>
+                    <p className="text-[11px] text-black/60 font-semibold mt-0.5">
+                      {googleStatus.driveRootFolderId
+                        ? `Configured Folder ID: ${googleStatus.driveRootFolderId}`
+                        : 'Auto-creates "White Ink Portal" root folder on next project/file action.'}
+                    </p>
+                  </div>
+
+                  {/* Sheets Attendance Sync Settings */}
+                  <form onSubmit={handleSaveGoogleSettings} className="space-y-3 pt-1 border-t border-gold-200">
+                    <div className="text-xs font-extrabold text-black">
+                      Google Sheets Attendance Mirroring
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-black mb-1">
+                          Spreadsheet ID
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                          value={spreadsheetIdInput}
+                          onChange={(e) => setSpreadsheetIdInput(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-gold-300 rounded-lg bg-white text-black font-medium focus:ring-1 focus:ring-gold-500 focus:outline-hidden"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-black mb-1">
+                          Sheet Tab Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Attendance_Log"
+                          value={sheetNameInput}
+                          onChange={(e) => setSheetNameInput(e.target.value)}
+                          className="w-full px-3 py-1.5 text-xs border border-gold-300 rounded-lg bg-white text-black font-medium focus:ring-1 focus:ring-gold-500 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        type="submit"
+                        disabled={savingGoogleSettings}
+                        className="px-3 py-1.5 bg-gold-500 hover:bg-gold-600 text-black text-xs font-bold rounded-lg border border-gold-600 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        {savingGoogleSettings ? 'Saving...' : 'Save Sheets Config'}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={syncingAttendance}
+                        onClick={handleSyncAttendanceNow}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gold-100 hover:bg-gold-200 text-black text-xs font-bold rounded-lg border border-gold-300 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 text-gold-700 ${syncingAttendance ? 'animate-spin' : ''}`} />
+                        {syncingAttendance ? 'Syncing...' : 'Sync Attendance Now'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right: Employee Schedule Overrides Table */}

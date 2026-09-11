@@ -30,9 +30,11 @@ import {
   CheckCircle2,
   ExternalLink,
   Sparkles,
+  Video,
 } from 'lucide-react';
 import { FinalHandoverView } from '../components/projects/FinalHandoverView';
 import { SubmitTaskModal } from '../components/tasks/SubmitTaskModal';
+import { ProjectMeetingsView } from '../components/projects/ProjectMeetingsView';
 
 interface ProjectDetailPageProps {
   projectId: string;
@@ -51,7 +53,7 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'tasks' | 'milestones' | 'approvals' | 'team' | 'comments'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'milestones' | 'approvals' | 'meetings' | 'team' | 'comments'>('tasks');
   const [viewMode, setViewMode] = useState<'handover' | 'workspace' | null>(null);
 
   const isFullyCompleted = project?.handoverEligibility?.eligible ?? project?.handoverEligible ?? false;
@@ -389,6 +391,19 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
 
         <button
           type="button"
+          onClick={() => setActiveTab('meetings')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'meetings'
+              ? 'border-gold-600 text-black bg-gold-100/50 rounded-t-lg'
+              : 'border-transparent text-black/60 hover:text-black'
+          }`}
+        >
+          <Video className="h-4 w-4 text-gold-600" />
+          Meetings
+        </button>
+
+        <button
+          type="button"
           onClick={() => setActiveTab('team')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === 'team'
@@ -705,6 +720,17 @@ export const ProjectDetailPage: React.FC<ProjectDetailPageProps> = ({
             )}
           </div>
         </div>
+      )}
+
+      {/* Tab: Project Meetings */}
+      {activeTab === 'meetings' && (
+        <ProjectMeetingsView
+          projectId={projectId}
+          projectName={project.name}
+          fallbackMeetingLink={project.meetingLink}
+          canManage={canManage}
+          isClient={isClient}
+        />
       )}
 
       {/* Tab 2: Team Members */}

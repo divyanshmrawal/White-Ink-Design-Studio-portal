@@ -56,9 +56,24 @@ clientsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response
     if ((!currentUser.clientId || client.id !== currentUser.clientId) && client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id) {
       return res.status(403).json({ message: 'Forbidden: Access to this client record is restricted.' });
     }
+  } else if (currentUser.role === 'TEAM_MEMBER') {
+    const accessibleClientIds = db.getAccessibleClientIdsForTeamMember(currentUser.id);
+    if (!accessibleClientIds.includes(id)) {
+      return res.status(403).json({ message: 'Forbidden: You are not assigned to any projects for this client.' });
+    }
   }
 
-  const clientProjects = db.getProjects().filter((p) => p.clientId === id);
+  let clientProjects = db.getProjects().filter((p) => p.clientId === id);
+  if (currentUser.role === 'TEAM_MEMBER') {
+    const memberProjectIds = new Set(
+      db.getProjectMembersByUserId(currentUser.id).map((pm) => pm.projectId)
+    );
+    db.getTasks()
+      .filter((t) => t.assignedToId === currentUser.id)
+      .forEach((t) => memberProjectIds.add(t.projectId));
+    clientProjects = clientProjects.filter((p) => memberProjectIds.has(p.id));
+  }
+
   return res.json({
     ...client,
     projects: clientProjects,

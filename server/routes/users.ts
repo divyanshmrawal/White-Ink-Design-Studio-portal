@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { db, Role } from '../db.ts';
 import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser, hashPassword, generateStrongPassword } from '../auth.ts';
+import { sendUserWelcomeCredentialsEmail } from '../email.ts';
 
 export const usersRouter = Router();
 
@@ -120,6 +121,14 @@ usersRouter.post(
         plaintextPassword,
         createdById: currentUser.id,
       });
+
+      // Dispatch welcome credentials email asynchronously
+      sendUserWelcomeCredentialsEmail({
+        toEmail: newUser.email,
+        userName: newUser.name,
+        role: newUser.role,
+        plaintextPassword,
+      }).catch((emailErr) => console.warn('[EMAIL] Welcome credentials email dispatch failed:', emailErr?.message));
 
       return res.status(201).json({
         ...sanitizeUser(newUser),

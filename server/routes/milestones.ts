@@ -64,13 +64,46 @@ milestonesRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response
   return res.json(enriched);
 });
 
+// Helper to verify user authorization for a project's milestones
+function isUserAuthorizedForProject(user: any, projectId: string): boolean {
+  if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
+
+  const project = db.getProjectById(projectId);
+  if (!project) return false;
+
+  if (user.role === 'TEAM_MEMBER') {
+    return (
+      db.getProjectMembers(projectId).some((pm) => pm.userId === user.id) ||
+      db.getTasks().some((t) => t.projectId === projectId && t.assignedToId === user.id) ||
+      project.createdById === user.id
+    );
+  }
+
+  if (user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN') {
+    const client = db.getClientById(project.clientId);
+    return Boolean(
+      (user.clientId && client && client.id === user.clientId) ||
+      (client && client.email.toLowerCase() === user.email.toLowerCase()) ||
+      project.clientId === user.id ||
+      project.createdById === user.id
+    );
+  }
+
+  return false;
+}
+
 // GET /api/milestones/:id
 milestonesRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
   const { id } = req.params;
   const milestone = db.getMilestoneById(id);
 
   if (!milestone) {
     return res.status(404).json({ message: 'Milestone not found.' });
+  }
+
+  if (!isUserAuthorizedForProject(currentUser, milestone.projectId)) {
+    return res.status(403).json({ message: 'Forbidden: Access to this milestone is restricted.' });
   }
 
   const project = db.getProjectById(milestone.projectId);
@@ -131,6 +164,16 @@ milestonesRouter.put(
     // Clients and Client Admins cannot edit milestones
     if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
       return res.status(403).json({ message: 'Forbidden: Clients cannot modify milestones.' });
+    }
+
+    // Team members can only update milestones for projects they belong to
+    if (currentUser.role === 'TEAM_MEMBER') {
+      const isMember = db.getProjectMembers(existing.projectId).some((pm) => pm.userId === currentUser.id);
+      const hasTask = db.getTasks().some((t) => t.projectId === existing.projectId && t.assignedToId === currentUser.id);
+      const project = db.getProjectById(existing.projectId);
+      if (!isMember && !hasTask && project?.createdById !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You can only update milestones in projects you are assigned to.' });
+      }
     }
 
     const { name, description, dueDate, status, progress, projectId } = req.body;

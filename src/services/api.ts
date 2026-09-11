@@ -18,6 +18,7 @@ import {
   HandoverDocument,
   AccessRequest,
   IssuedCredential,
+  Meeting,
 } from '../types';
 
 const API_BASE = '/api';
@@ -342,11 +343,30 @@ export const api = {
       method: 'PATCH',
     }),
 
-  submitTask: (id: string, payload: { submissionDescription: string; proofDetails: string; deliverableUrl?: string }) =>
-    request<Task>(`/tasks/${id}/submit`, {
+  submitTask: (id: string, payload: { submissionDescription: string; proofDetails: string; deliverableUrl?: string; file?: File }) => {
+    if (payload.file) {
+      const formData = new FormData();
+      formData.append('submissionDescription', payload.submissionDescription);
+      formData.append('proofDetails', payload.proofDetails);
+      if (payload.deliverableUrl) formData.append('deliverableUrl', payload.deliverableUrl);
+      formData.append('file', payload.file);
+
+      return fetch(`${API_BASE}/tasks/${id}/submit`, {
+        method: 'POST',
+        headers: getAuthHeader(),
+        body: formData,
+      }).then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.message || 'Task submission failed');
+        return data as Task;
+      });
+    }
+
+    return request<Task>(`/tasks/${id}/submit`, {
       method: 'POST',
       body: JSON.stringify(payload),
-    }),
+    });
+  },
 
   submitRevisionRequest: (id: string, payload: {
     feedback: string;
@@ -869,4 +889,93 @@ export const api = {
     }
     return response.blob();
   },
+
+  // Google Integration (SUPER_ADMIN)
+  getGoogleStatus: () =>
+    request<{
+      isConnected: boolean;
+      email: string | null;
+      scopes: string[];
+      driveRootFolderId: string | null;
+      sheetsAttendanceSpreadsheetId: string | null;
+      sheetsAttendanceSheetName: string | null;
+      calendarId: string | null;
+      lastSyncAt: string | null;
+      error: string | null;
+    }>('/google/status'),
+
+  getGoogleConnectUrl: () => request<{ url: string }>('/google/connect'),
+
+  disconnectGoogle: () =>
+    request<{ success: boolean; message: string }>('/google/disconnect', {
+      method: 'POST',
+    }),
+
+  updateGoogleSettings: (payload: {
+    sheetsAttendanceSpreadsheetId?: string;
+    sheetsAttendanceSheetName?: string;
+    calendarId?: string;
+    driveRootFolderId?: string;
+  }) =>
+    request<{ message: string; settings: any }>('/google/settings', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+
+  syncGoogleAttendance: () =>
+    request<{ success: boolean; syncedCount: number; failedCount: number; error?: string }>(
+      '/google/sync-attendance',
+      {
+        method: 'POST',
+      }
+    ),
+
+  // Project Meetings (Google Calendar + Meet)
+  getProjectMeetings: (projectId: string) =>
+    request<Meeting[]>(`/projects/${projectId}/meetings`),
+
+  createProjectMeeting: (
+    projectId: string,
+    payload: {
+      title: string;
+      description?: string;
+      startTime: string;
+      endTime: string;
+      attendeeEmails?: string[];
+    }
+  ) =>
+    request<{ message: string; meeting: Meeting; meetLink?: string; calendarEventId?: string }>(
+      `/projects/${projectId}/meetings`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    ),
+
+  updateProjectMeeting: (
+    projectId: string,
+    meetingId: string,
+    payload: {
+      title?: string;
+      description?: string;
+      startTime?: string;
+      endTime?: string;
+      status?: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+    }
+  ) =>
+    request<{ success: boolean; meeting: Meeting }>(
+      `/projects/${projectId}/meetings/${meetingId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    ),
+
+  cancelProjectMeeting: (projectId: string, meetingId: string) =>
+    request<{ message: string; meeting: Meeting; success: boolean }>(
+      `/projects/${projectId}/meetings/${meetingId}`,
+      {
+        method: 'DELETE',
+      }
+    ),
 };

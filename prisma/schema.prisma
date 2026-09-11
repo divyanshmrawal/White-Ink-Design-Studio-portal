@@ -131,9 +131,11 @@ model Client {
   company   String
   email     String    @unique
   phone     String?
-  address   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  address        String?
+  driveFolderId  String?
+  driveFolderUrl String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   users     User[]
   projects  Project[]
@@ -155,6 +157,9 @@ model Project {
   estimatedBudget Float?
   leadOwnerId     String?
   preferredMeetingTime DateTime?
+  meetingLink         String?
+  calendarEventId     String?
+  driveFolderId       String?
   handoverNote    String?
   driveUrl        String?
   handoverDocs    String?
@@ -169,6 +174,7 @@ model Project {
   comments    Comment[]
   milestones  Milestone[]
   approvals   ClientApproval[]
+  meetings    Meeting[]
 
   @@map("projects")
 }
@@ -200,6 +206,10 @@ model Task {
   submissionDescription String?
   proofDetails String?
   deliverableUrl String?
+  driveFileId     String?
+  driveFileName   String?
+  driveFileSize   Int?
+  driveFileMimeType String?
   submittedById String?
   submittedAt DateTime?
   clientApprovalStatus ApprovalStatus @default(PENDING)
@@ -243,6 +253,8 @@ model Attendance {
   totalWorkingMinutes     Int              @default(0)
   totalBreakMinutes       Int              @default(0)
   effectiveWorkingMinutes Int              @default(0)
+  sheetsSyncedAt          DateTime?
+  sheetsRowIndex          Int?
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt
 
@@ -529,5 +541,46 @@ model IssuedCredential {
   @@map("issued_credentials")
 }
 
+enum MeetingStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
 
+model Meeting {
+  id              String        @id @default(uuid())
+  projectId       String
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime
+  calendarEventId String?
+  meetLink        String?
+  status          MeetingStatus @default(SCHEDULED)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
+  project         Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("meetings")
+}
+
+model GoogleIntegration {
+  id                            String    @id @default("primary")
+  connectedEmail                String?
+  encryptedRefreshToken         String?
+  accessToken                   String?
+  tokenExpiry                   DateTime?
+  scopes                        String?
+  isConnected                   Boolean   @default(false)
+  driveRootFolderId             String?
+  sheetsAttendanceSpreadsheetId String?
+  sheetsAttendanceSheetName     String?   @default("Attendance_Log")
+  calendarId                    String?   @default("primary")
+  lastSyncAt                    DateTime?
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+
+  @@map("google_integrations")
+}

@@ -20,6 +20,7 @@ export type LeaveType =
   | 'OTHER';
 export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 export type ReviewStatus = 'DRAFT' | 'PUBLISHED' | 'ACKNOWLEDGED';
+export type MeetingStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 
 export type NotificationType =
   | 'TASK_ASSIGNED'
@@ -80,6 +81,8 @@ export interface ClientRecord {
   email: string;
   phone?: string | null;
   address?: string | null;
+  driveFolderId?: string | null;
+  driveFolderUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -98,6 +101,9 @@ export interface ProjectRecord {
   estimatedBudget?: number | null;
   leadOwnerId?: string | null;
   preferredMeetingTime?: string | null;
+  meetingLink?: string | null;
+  calendarEventId?: string | null;
+  driveFolderId?: string | null;
   handoverNote?: string | null;
   driveUrl?: string | null;
   handoverDocs?: string | null;
@@ -139,6 +145,10 @@ export interface TaskRecord {
   submissionDescription?: string | null;
   proofDetails?: string | null;
   deliverableUrl?: string | null;
+  driveFileId?: string | null;
+  driveFileName?: string | null;
+  driveFileSize?: number | null;
+  driveFileMimeType?: string | null;
   submittedById?: string | null;
   submittedAt?: string | null;
   clientApprovalStatus?: ApprovalStatus;
@@ -217,6 +227,39 @@ export interface AttendanceRecord {
   totalWorkingMinutes: number;
   totalBreakMinutes: number;
   effectiveWorkingMinutes: number;
+  sheetsSyncedAt?: string | null;
+  sheetsRowIndex?: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MeetingRecord {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string | null;
+  startTime: string;
+  endTime: string;
+  calendarEventId?: string | null;
+  meetLink?: string | null;
+  status: MeetingStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoogleIntegrationRecord {
+  id: string;
+  connectedEmail?: string | null;
+  encryptedRefreshToken?: string | null;
+  accessToken?: string | null;
+  tokenExpiry?: string | null;
+  scopes?: string | null;
+  isConnected: boolean;
+  driveRootFolderId?: string | null;
+  sheetsAttendanceSpreadsheetId?: string | null;
+  sheetsAttendanceSheetName?: string | null;
+  calendarId?: string | null;
+  lastSyncAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -358,6 +401,8 @@ export interface DatabaseSchema {
   pushSubscriptions: PushSubscriptionRecord[];
   accessRequests: AccessRequestRecord[];
   issuedCredentials: IssuedCredentialRecord[];
+  meetings: MeetingRecord[];
+  googleIntegration: GoogleIntegrationRecord | null;
 }
 
 export function getTodayDateString(d: Date = new Date()): string {
@@ -365,6 +410,26 @@ export function getTodayDateString(d: Date = new Date()): string {
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function toIsoSafe(val: any, fallback = new Date().toISOString()): string {
+  if (!val) return fallback;
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? fallback : d.toISOString();
+  }
+  return fallback;
+}
+
+function toNullableIsoSafe(val: any): string | null {
+  if (!val) return null;
+  if (val instanceof Date) return val.toISOString();
+  if (typeof val === 'string') {
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  return null;
 }
 
 class DatabaseService {
@@ -387,6 +452,8 @@ class DatabaseService {
     chatMessages: [],
     accessRequests: [],
     issuedCredentials: [],
+    meetings: [],
+    googleIntegration: null,
     settings: {
       id: 'system_config',
       officeStartTime: '09:30',
@@ -417,37 +484,48 @@ class DatabaseService {
   };
   private isInitialized = false;
   private isPrismaActive = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor() {
-    this.init();
+    this.init().catch((err) => {
+      console.warn('Database async init note:', err?.message);
+    });
   }
 
-  public async init() {
+  public async init(): Promise<void> {
     if (this.isInitialized) return;
-    try {
-      if (isPrismaConfigured && prisma) {
-        await prisma.$connect();
-        this.isPrismaActive = true;
-        const userCount = await prisma.user.count();
-        if (userCount === 0) {
-          await this.resetToSeed();
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = (async () => {
+      try {
+        if (isPrismaConfigured && prisma) {
+          await prisma.$connect();
+          this.isPrismaActive = true;
+          const userCount = await prisma.user.count();
+          if (userCount === 0) {
+            await this.resetToSeed();
+          } else {
+            await this.loadFromPrisma();
+          }
         } else {
-          await this.loadFromPrisma();
+          const seed = await getSeedData();
+          this.populateInMemory(seed);
         }
-      } else {
-        const seed = await getSeedData();
-        this.populateInMemory(seed);
+        this.isInitialized = true;
+      } catch (err: any) {
+        this.isPrismaActive = false;
+        console.info('Operating with robust in-memory database store (Prisma note:', err?.message, ')');
+        if (this.data.users.length === 0) {
+          const seed = await getSeedData();
+          this.populateInMemory(seed);
+        }
+        this.isInitialized = true;
+      } finally {
+        this.initPromise = null;
       }
-      this.isInitialized = true;
-    } catch {
-      this.isPrismaActive = false;
-      console.info('Operating with robust in-memory database store.');
-      if (this.data.users.length === 0) {
-        const seed = await getSeedData();
-        this.populateInMemory(seed);
-      }
-      this.isInitialized = true;
-    }
+    })();
+
+    return this.initPromise;
   }
 
   private async loadFromPrisma() {
@@ -473,135 +551,174 @@ class DatabaseService {
         settings,
         scheduleOverrides,
         pushSubscriptions,
+        accessRequests,
+        issuedCredentials,
+        meetings,
+        googleInt,
       ] = await Promise.all([
-        prisma.user.findMany(),
-        prisma.client.findMany(),
-        prisma.project.findMany(),
-        prisma.projectMember.findMany(),
-        prisma.task.findMany(),
-        prisma.comment.findMany(),
-        prisma.attendance.findMany(),
-        prisma.break.findMany(),
-        prisma.milestone.findMany(),
-        prisma.clientApproval.findMany(),
-        prisma.notification.findMany(),
-        prisma.leaveRequest.findMany(),
-        prisma.sOPDocument.findMany(),
-        prisma.performanceReview.findMany(),
-        prisma.activityLog.findMany(),
-        prisma.chatMessage.findMany(),
-        prisma.systemSettings.findFirst(),
-        prisma.employeeScheduleOverride.findMany(),
-        prisma.pushSubscription.findMany(),
+        prisma.user.findMany().catch((err) => { console.warn('Prisma load users err:', err?.message); return []; }),
+        prisma.client.findMany().catch((err) => { console.warn('Prisma load clients err:', err?.message); return []; }),
+        prisma.project.findMany().catch((err) => { console.warn('Prisma load projects err:', err?.message); return []; }),
+        prisma.projectMember.findMany().catch((err) => { console.warn('Prisma load projectMembers err:', err?.message); return []; }),
+        prisma.task.findMany().catch((err) => { console.warn('Prisma load tasks err:', err?.message); return []; }),
+        prisma.comment.findMany().catch((err) => { console.warn('Prisma load comments err:', err?.message); return []; }),
+        prisma.attendance.findMany().catch((err) => { console.warn('Prisma load attendances err:', err?.message); return []; }),
+        prisma.break.findMany().catch((err) => { console.warn('Prisma load breaks err:', err?.message); return []; }),
+        prisma.milestone.findMany().catch((err) => { console.warn('Prisma load milestones err:', err?.message); return []; }),
+        prisma.clientApproval.findMany().catch((err) => { console.warn('Prisma load approvals err:', err?.message); return []; }),
+        prisma.notification.findMany().catch((err) => { console.warn('Prisma load notifications err:', err?.message); return []; }),
+        prisma.leaveRequest.findMany().catch((err) => { console.warn('Prisma load leaves err:', err?.message); return []; }),
+        prisma.sOPDocument.findMany().catch((err) => { console.warn('Prisma load sops err:', err?.message); return []; }),
+        prisma.performanceReview.findMany().catch((err) => { console.warn('Prisma load reviews err:', err?.message); return []; }),
+        prisma.activityLog.findMany().catch((err) => { console.warn('Prisma load activities err:', err?.message); return []; }),
+        prisma.chatMessage.findMany().catch((err) => { console.warn('Prisma load chatMessages err:', err?.message); return []; }),
+        prisma.systemSettings.findFirst().catch((err) => { console.warn('Prisma load settings err:', err?.message); return null; }),
+        prisma.employeeScheduleOverride.findMany().catch((err) => { console.warn('Prisma load scheduleOverrides err:', err?.message); return []; }),
+        prisma.pushSubscription.findMany().catch((err) => { console.warn('Prisma load pushSubscriptions err:', err?.message); return []; }),
+        prisma.accessRequest.findMany().catch((err) => { console.warn('Prisma load accessRequests err:', err?.message); return []; }),
+        prisma.issuedCredential.findMany().catch((err) => { console.warn('Prisma load issuedCredentials err:', err?.message); return []; }),
+        prisma.meeting.findMany().catch((err) => { console.warn('Prisma load meetings err:', err?.message); return []; }),
+        prisma.googleIntegration.findFirst().catch((err) => { console.warn('Prisma load googleIntegration err:', err?.message); return null; }),
       ]);
 
       this.data = {
         users: users.map((u) => ({
           ...u,
-          createdAt: u.createdAt.toISOString(),
-          updatedAt: u.updatedAt.toISOString(),
+          createdAt: toIsoSafe(u.createdAt),
+          updatedAt: toIsoSafe(u.updatedAt),
         })) as UserRecord[],
         clients: clients.map((c) => ({
           ...c,
-          createdAt: c.createdAt.toISOString(),
-          updatedAt: c.updatedAt.toISOString(),
+          createdAt: toIsoSafe(c.createdAt),
+          updatedAt: toIsoSafe(c.updatedAt),
         })) as ClientRecord[],
         projects: projects.map((p: any) => ({
           ...p,
-          startDate: p.startDate ? p.startDate.toISOString() : null,
-          dueDate: p.dueDate ? p.dueDate.toISOString() : null,
-          preferredMeetingTime: p.preferredMeetingTime ? p.preferredMeetingTime.toISOString() : null,
-          handoverCompletedAt: p.handoverCompletedAt ? p.handoverCompletedAt.toISOString() : null,
-          createdAt: p.createdAt.toISOString(),
-          updatedAt: p.updatedAt.toISOString(),
+          startDate: toNullableIsoSafe(p.startDate),
+          dueDate: toNullableIsoSafe(p.dueDate),
+          preferredMeetingTime: toNullableIsoSafe(p.preferredMeetingTime),
+          handoverCompletedAt: toNullableIsoSafe(p.handoverCompletedAt),
+          createdAt: toIsoSafe(p.createdAt),
+          updatedAt: toIsoSafe(p.updatedAt),
         })) as unknown as ProjectRecord[],
         projectMembers: projectMembers as ProjectMemberRecord[],
         tasks: tasks.map((t) => ({
           ...t,
-          dueDate: t.dueDate ? t.dueDate.toISOString() : null,
-          submittedAt: t.submittedAt ? t.submittedAt.toISOString() : null,
-          reviewedAt: t.reviewedAt ? t.reviewedAt.toISOString() : null,
-          createdAt: t.createdAt.toISOString(),
-          updatedAt: t.updatedAt.toISOString(),
+          dueDate: toNullableIsoSafe(t.dueDate),
+          submittedAt: toNullableIsoSafe(t.submittedAt),
+          reviewedAt: toNullableIsoSafe(t.reviewedAt),
+          createdAt: toIsoSafe(t.createdAt),
+          updatedAt: toIsoSafe(t.updatedAt),
         })) as TaskRecord[],
         comments: comments.map((c) => ({
           ...c,
-          createdAt: c.createdAt.toISOString(),
-          updatedAt: c.updatedAt.toISOString(),
+          createdAt: toIsoSafe(c.createdAt),
+          updatedAt: toIsoSafe(c.updatedAt),
         })) as CommentRecord[],
-        attendances: attendances.map((a) => ({
+        attendances: attendances.map((a: any) => ({
           ...a,
-          clockIn: a.clockIn ? a.clockIn.toISOString() : null,
-          clockOut: a.clockOut ? a.clockOut.toISOString() : null,
-          createdAt: a.createdAt.toISOString(),
-          updatedAt: a.updatedAt.toISOString(),
+          clockIn: toNullableIsoSafe(a.clockIn),
+          clockOut: toNullableIsoSafe(a.clockOut),
+          sheetsSyncedAt: toNullableIsoSafe(a.sheetsSyncedAt),
+          sheetsRowIndex: a.sheetsRowIndex ?? null,
+          createdAt: toIsoSafe(a.createdAt),
+          updatedAt: toIsoSafe(a.updatedAt),
         })) as AttendanceRecord[],
         breaks: breaks.map((b) => ({
           ...b,
-          startTime: b.startTime.toISOString(),
-          endTime: b.endTime ? b.endTime.toISOString() : null,
-          createdAt: b.createdAt.toISOString(),
-          updatedAt: b.updatedAt.toISOString(),
+          startTime: toIsoSafe(b.startTime),
+          endTime: toNullableIsoSafe(b.endTime),
+          createdAt: toIsoSafe(b.createdAt),
+          updatedAt: toIsoSafe(b.updatedAt),
         })) as BreakRecord[],
         milestones: milestones.map((m) => ({
           ...m,
-          dueDate: m.dueDate ? m.dueDate.toISOString() : null,
-          createdAt: m.createdAt.toISOString(),
-          updatedAt: m.updatedAt.toISOString(),
+          dueDate: toNullableIsoSafe(m.dueDate),
+          createdAt: toIsoSafe(m.createdAt),
+          updatedAt: toIsoSafe(m.updatedAt),
         })) as MilestoneRecord[],
         approvals: approvals.map((a) => ({
           ...a,
-          reviewedAt: a.reviewedAt ? a.reviewedAt.toISOString() : null,
-          createdAt: a.createdAt.toISOString(),
-          updatedAt: a.updatedAt.toISOString(),
+          reviewedAt: toNullableIsoSafe(a.reviewedAt),
+          createdAt: toIsoSafe(a.createdAt),
+          updatedAt: toIsoSafe(a.updatedAt),
         })) as ClientApprovalRecord[],
         notifications: notifications.map((n) => ({
           ...n,
-          createdAt: n.createdAt.toISOString(),
+          createdAt: toIsoSafe(n.createdAt),
         })) as NotificationRecord[],
         leaves: leaves.map((l) => ({
           ...l,
-          reviewedAt: l.reviewedAt ? l.reviewedAt.toISOString() : null,
-          createdAt: l.createdAt.toISOString(),
-          updatedAt: l.updatedAt.toISOString(),
+          reviewedAt: toNullableIsoSafe(l.reviewedAt),
+          createdAt: toIsoSafe(l.createdAt),
+          updatedAt: toIsoSafe(l.updatedAt),
         })) as LeaveRecord[],
         sops: sops.map((s) => ({
           ...s,
-          createdAt: s.createdAt.toISOString(),
-          updatedAt: s.updatedAt.toISOString(),
+          createdAt: toIsoSafe(s.createdAt),
+          updatedAt: toIsoSafe(s.updatedAt),
         })) as SOPRecord[],
         reviews: reviews.map((r) => ({
           ...r,
-          createdAt: r.createdAt.toISOString(),
-          updatedAt: r.updatedAt.toISOString(),
+          createdAt: toIsoSafe(r.createdAt),
+          updatedAt: toIsoSafe(r.updatedAt),
         })) as PerformanceReviewRecord[],
         activities: activities.map((a) => ({
           ...a,
-          createdAt: a.createdAt.toISOString(),
+          createdAt: toIsoSafe(a.createdAt),
         })) as ActivityLogRecord[],
         chatMessages: chatMessages.map((m) => ({
           ...m,
-          createdAt: m.createdAt.toISOString(),
-          updatedAt: m.updatedAt.toISOString(),
+          createdAt: toIsoSafe(m.createdAt),
+          updatedAt: toIsoSafe(m.updatedAt),
         })) as ChatMessageRecord[],
         settings: settings
           ? {
               ...settings,
-              updatedAt: settings.updatedAt.toISOString(),
+              updatedAt: toIsoSafe(settings.updatedAt),
             }
           : this.data.settings,
         scheduleOverrides: scheduleOverrides.map((o) => ({
           ...o,
-          createdAt: o.createdAt.toISOString(),
-          updatedAt: o.updatedAt.toISOString(),
+          createdAt: toIsoSafe(o.createdAt),
+          updatedAt: toIsoSafe(o.updatedAt),
         })) as EmployeeScheduleOverrideRecord[],
         pushSubscriptions: pushSubscriptions.map((ps) => ({
           ...ps,
-          createdAt: ps.createdAt.toISOString(),
+          createdAt: toIsoSafe(ps.createdAt),
         })) as PushSubscriptionRecord[],
-        accessRequests: [],
-        issuedCredentials: [],
+        accessRequests: (accessRequests || []).map((a: any) => ({
+          ...a,
+          reviewedAt: toNullableIsoSafe(a.reviewedAt),
+          createdAt: toIsoSafe(a.createdAt),
+          updatedAt: toIsoSafe(a.updatedAt),
+        })) as AccessRequestRecord[],
+        issuedCredentials: (issuedCredentials || []).map((c: any) => ({
+          id: String(c.id),
+          userId: String(c.userId),
+          email: String(c.email),
+          plaintextPassword: String(c.plaintextPassword),
+          createdById: String(c.createdById),
+          createdAt: toIsoSafe(c.createdAt),
+        })) as IssuedCredentialRecord[],
+        meetings: (meetings || []).map((m: any) => ({
+          ...m,
+          startTime: toIsoSafe(m.startTime),
+          endTime: toIsoSafe(m.endTime),
+          createdAt: toIsoSafe(m.createdAt),
+          updatedAt: toIsoSafe(m.updatedAt),
+        })) as MeetingRecord[],
+        googleIntegration: googleInt
+          ? ({
+              ...googleInt,
+              tokenExpiry: toNullableIsoSafe(googleInt.tokenExpiry),
+              lastSyncAt: toNullableIsoSafe(googleInt.lastSyncAt),
+              createdAt: toIsoSafe(googleInt.createdAt),
+              updatedAt: toIsoSafe(googleInt.updatedAt),
+            } as GoogleIntegrationRecord)
+          : null,
       };
+
       this.recalculateAllProjectProgress();
       this.ensureClientAdmins();
     } catch (e) {
@@ -688,6 +805,8 @@ class DatabaseService {
       pushSubscriptions: [],
       accessRequests: [],
       issuedCredentials: [],
+      meetings: [],
+      googleIntegration: null,
     };
     this.recalculateAllProjectProgress();
     this.ensureClientAdmins();
@@ -837,6 +956,8 @@ class DatabaseService {
     if (index === -1) return false;
     this.data.users.splice(index, 1);
     this.data.projectMembers = this.data.projectMembers.filter((pm) => pm.userId !== id);
+    this.data.issuedCredentials = this.data.issuedCredentials.filter((c) => c.userId !== id && c.createdById !== id);
+    this.data.accessRequests = this.data.accessRequests.filter((a) => a.reviewedById !== id);
 
     if (prisma && this.isPrismaActive) {
       prisma.user
@@ -897,6 +1018,8 @@ class DatabaseService {
             email: newClient.email,
             phone: newClient.phone,
             address: newClient.address,
+            driveFolderId: newClient.driveFolderId || null,
+            driveFolderUrl: newClient.driveFolderUrl || null,
           },
         })
         .catch(() => {});
@@ -978,6 +1101,9 @@ class DatabaseService {
             estimatedBudget: newProject.estimatedBudget || null,
             leadOwnerId: newProject.leadOwnerId || null,
             preferredMeetingTime: newProject.preferredMeetingTime ? new Date(newProject.preferredMeetingTime) : null,
+            meetingLink: newProject.meetingLink || null,
+            calendarEventId: newProject.calendarEventId || null,
+            driveFolderId: newProject.driveFolderId || null,
             handoverNote: newProject.handoverNote || null,
             driveUrl: newProject.driveUrl || null,
             handoverDocs: newProject.handoverDocs || null,
@@ -1189,6 +1315,10 @@ class DatabaseService {
             submissionDescription: newTask.submissionDescription,
             proofDetails: newTask.proofDetails,
             deliverableUrl: newTask.deliverableUrl,
+            driveFileId: newTask.driveFileId || null,
+            driveFileName: newTask.driveFileName || null,
+            driveFileSize: newTask.driveFileSize ?? null,
+            driveFileMimeType: newTask.driveFileMimeType || null,
             submittedById: newTask.submittedById,
             submittedAt: newTask.submittedAt ? new Date(newTask.submittedAt) : null,
             clientApprovalStatus: newTask.clientApprovalStatus,
@@ -3059,6 +3189,36 @@ class DatabaseService {
     return this.getAttendanceWithDetails(newAtt);
   }
 
+  public updateAttendanceSyncStatus(
+    id: string,
+    syncData: { sheetsSyncedAt: string; sheetsRowIndex?: number }
+  ) {
+    const index = this.data.attendances.findIndex((a) => a.id === id);
+    if (index === -1) return null;
+    const old = this.data.attendances[index];
+
+    this.data.attendances[index] = {
+      ...old,
+      sheetsSyncedAt: syncData.sheetsSyncedAt,
+      ...(syncData.sheetsRowIndex !== undefined ? { sheetsRowIndex: syncData.sheetsRowIndex } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (prisma && this.isPrismaActive) {
+      prisma.attendance
+        .update({
+          where: { id },
+          data: {
+            sheetsSyncedAt: new Date(syncData.sheetsSyncedAt),
+            ...(syncData.sheetsRowIndex !== undefined ? { sheetsRowIndex: syncData.sheetsRowIndex } : {}),
+          },
+        })
+        .catch(() => {});
+    }
+
+    return this.data.attendances[index];
+  }
+
   // --- PUSH NOTIFICATIONS ---
   public savePushSubscription(sub: { userId: string; endpoint: string; authKey: string; p256dhKey: string }) {
     const index = this.data.pushSubscriptions.findIndex((p) => p.endpoint === sub.endpoint);
@@ -3192,41 +3352,16 @@ class DatabaseService {
     return list;
   }
 
+  public getIssuedCredentialByUserId(userId: string): IssuedCredentialRecord | undefined {
+    return this.data.issuedCredentials.find((c) => c.userId === userId);
+  }
+
   public createIssuedCredential(cred: Omit<IssuedCredentialRecord, 'id' | 'createdAt'> & { id?: string }) {
-    const id = cred.id || `crd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const now = new Date().toISOString();
-    const newCred: IssuedCredentialRecord = {
-      id,
-      userId: cred.userId,
-      email: cred.email,
-      plaintextPassword: cred.plaintextPassword,
-      createdById: cred.createdById,
-      createdAt: now,
-    };
-    this.data.issuedCredentials.push(newCred);
-
-    if (prisma && this.isPrismaActive) {
-      const p = prisma as any;
-      if (p.issuedCredential) {
-        p.issuedCredential
-          .create({
-            data: {
-              id: newCred.id,
-              userId: newCred.userId,
-              email: newCred.email,
-              plaintextPassword: newCred.plaintextPassword,
-              createdById: newCred.createdById,
-              createdAt: new Date(newCred.createdAt),
-            },
-          })
-          .catch(() => {});
-      }
-    }
-
-    return newCred;
+    return this.upsertIssuedCredential(cred);
   }
 
   public upsertIssuedCredential(cred: {
+    id?: string;
     userId: string;
     email: string;
     plaintextPassword: string;
@@ -3234,45 +3369,239 @@ class DatabaseService {
   }) {
     const existingIndex = this.data.issuedCredentials.findIndex((c) => c.userId === cred.userId);
     const now = new Date().toISOString();
+    const credId = cred.id || (existingIndex !== -1 ? this.data.issuedCredentials[existingIndex].id : `crd_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+
+    // Ensure valid createdById to satisfy PostgreSQL foreign key constraint
+    const issuerExists = this.data.users.some((u) => u.id === cred.createdById);
+    const validCreatedById = issuerExists
+      ? cred.createdById
+      : (this.data.users.find((u) => u.role === 'SUPER_ADMIN')?.id || cred.userId);
+
+    const record: IssuedCredentialRecord = {
+      id: credId,
+      userId: cred.userId,
+      email: cred.email,
+      plaintextPassword: cred.plaintextPassword,
+      createdById: validCreatedById,
+      createdAt: now,
+    };
 
     if (existingIndex !== -1) {
-      this.data.issuedCredentials[existingIndex] = {
-        ...this.data.issuedCredentials[existingIndex],
-        email: cred.email,
-        plaintextPassword: cred.plaintextPassword,
-        createdById: cred.createdById,
-        createdAt: now,
-      };
+      this.data.issuedCredentials[existingIndex] = record;
+    } else {
+      this.data.issuedCredentials.push(record);
+    }
 
-      if (prisma && this.isPrismaActive) {
-        const p = prisma as any;
-        if (p.issuedCredential) {
-          p.issuedCredential
-            .upsert({
+    if (prisma && this.isPrismaActive) {
+      const p = prisma as any;
+      if (p.issuedCredential) {
+        const executeUpsert = async () => {
+          try {
+            await p.issuedCredential.upsert({
               where: { userId: cred.userId },
               update: {
                 email: cred.email,
                 plaintextPassword: cred.plaintextPassword,
-                createdById: cred.createdById,
+                createdById: validCreatedById,
                 createdAt: new Date(now),
               },
               create: {
-                id: this.data.issuedCredentials[existingIndex].id,
+                id: credId,
                 userId: cred.userId,
                 email: cred.email,
                 plaintextPassword: cred.plaintextPassword,
-                createdById: cred.createdById,
+                createdById: validCreatedById,
                 createdAt: new Date(now),
               },
-            })
-            .catch(() => {});
-        }
+            });
+          } catch (err: any) {
+            // If foreign key constraint failed due to user creation in-flight, retry after brief delay
+            if (err?.code === 'P2003' || String(err?.message || '').includes('Foreign key')) {
+              setTimeout(async () => {
+                try {
+                  await p.issuedCredential.upsert({
+                    where: { userId: cred.userId },
+                    update: {
+                      email: cred.email,
+                      plaintextPassword: cred.plaintextPassword,
+                      createdById: validCreatedById,
+                      createdAt: new Date(now),
+                    },
+                    create: {
+                      id: credId,
+                      userId: cred.userId,
+                      email: cred.email,
+                      plaintextPassword: cred.plaintextPassword,
+                      createdById: validCreatedById,
+                      createdAt: new Date(now),
+                    },
+                  });
+                } catch (retryErr: any) {
+                  console.warn('[CREDENTIALS] Retry upsert to PostgreSQL failed:', retryErr?.message);
+                }
+              }, 250);
+            } else {
+              console.warn('[CREDENTIALS] PostgreSQL upsert error:', err?.message);
+            }
+          }
+        };
+
+        executeUpsert();
+      }
+    }
+
+    return record;
+  }
+
+  // --- GOOGLE INTEGRATION (SINGLETON) ---
+  public getGoogleIntegration(): GoogleIntegrationRecord {
+    if (!this.data.googleIntegration) {
+      this.data.googleIntegration = {
+        id: 'primary',
+        connectedEmail: null,
+        encryptedRefreshToken: null,
+        accessToken: null,
+        tokenExpiry: null,
+        scopes: null,
+        isConnected: false,
+        driveRootFolderId: null,
+        sheetsAttendanceSpreadsheetId: null,
+        sheetsAttendanceSheetName: 'Attendance_Log',
+        calendarId: 'primary',
+        lastSyncAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return this.data.googleIntegration;
+  }
+
+  public updateGoogleIntegration(updates: Partial<Omit<GoogleIntegrationRecord, 'id' | 'createdAt'>>): GoogleIntegrationRecord {
+    const current = this.getGoogleIntegration();
+    const now = new Date().toISOString();
+    this.data.googleIntegration = {
+      ...current,
+      ...updates,
+      updatedAt: now,
+    };
+
+    if (prisma && this.isPrismaActive) {
+      const prismaData: any = { ...updates, updatedAt: new Date(now) };
+      if (updates.tokenExpiry !== undefined) {
+        prismaData.tokenExpiry = updates.tokenExpiry ? new Date(updates.tokenExpiry) : null;
+      }
+      if (updates.lastSyncAt !== undefined) {
+        prismaData.lastSyncAt = updates.lastSyncAt ? new Date(updates.lastSyncAt) : null;
       }
 
-      return this.data.issuedCredentials[existingIndex];
-    } else {
-      return this.createIssuedCredential(cred);
+      prisma.googleIntegration
+        .upsert({
+          where: { id: 'primary' },
+          update: prismaData,
+          create: {
+            id: 'primary',
+            connectedEmail: this.data.googleIntegration.connectedEmail || null,
+            encryptedRefreshToken: this.data.googleIntegration.encryptedRefreshToken || null,
+            accessToken: this.data.googleIntegration.accessToken || null,
+            tokenExpiry: this.data.googleIntegration.tokenExpiry ? new Date(this.data.googleIntegration.tokenExpiry) : null,
+            scopes: this.data.googleIntegration.scopes || null,
+            isConnected: this.data.googleIntegration.isConnected || false,
+            driveRootFolderId: this.data.googleIntegration.driveRootFolderId || null,
+            sheetsAttendanceSpreadsheetId: this.data.googleIntegration.sheetsAttendanceSpreadsheetId || null,
+            sheetsAttendanceSheetName: this.data.googleIntegration.sheetsAttendanceSheetName || 'Attendance_Log',
+            calendarId: this.data.googleIntegration.calendarId || 'primary',
+            lastSyncAt: this.data.googleIntegration.lastSyncAt ? new Date(this.data.googleIntegration.lastSyncAt) : null,
+          },
+        })
+        .catch(() => {});
     }
+
+    return this.data.googleIntegration;
+  }
+
+  // --- MEETINGS ---
+  public getMeetings(projectId?: string): MeetingRecord[] {
+    if (projectId) {
+      return this.data.meetings.filter((m) => m.projectId === projectId);
+    }
+    return this.data.meetings;
+  }
+
+  public getMeetingById(id: string): MeetingRecord | undefined {
+    return this.data.meetings.find((m) => m.id === id);
+  }
+
+  public createMeeting(meeting: Omit<MeetingRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): MeetingRecord {
+    const now = new Date().toISOString();
+    const id = meeting.id || `meet_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newMeeting: MeetingRecord = {
+      ...meeting,
+      id,
+      status: meeting.status || 'SCHEDULED',
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.data.meetings.push(newMeeting);
+
+    if (prisma && this.isPrismaActive) {
+      prisma.meeting
+        .create({
+          data: {
+            id: newMeeting.id,
+            projectId: newMeeting.projectId,
+            title: newMeeting.title,
+            description: newMeeting.description || null,
+            startTime: new Date(newMeeting.startTime),
+            endTime: new Date(newMeeting.endTime),
+            calendarEventId: newMeeting.calendarEventId || null,
+            meetLink: newMeeting.meetLink || null,
+            status: newMeeting.status,
+          },
+        })
+        .catch(() => {});
+    }
+
+    return newMeeting;
+  }
+
+  public updateMeeting(id: string, updates: Partial<Omit<MeetingRecord, 'id' | 'createdAt'>>): MeetingRecord | null {
+    const index = this.data.meetings.findIndex((m) => m.id === id);
+    if (index === -1) return null;
+    const now = new Date().toISOString();
+    this.data.meetings[index] = {
+      ...this.data.meetings[index],
+      ...updates,
+      updatedAt: now,
+    };
+
+    if (prisma && this.isPrismaActive) {
+      const prismaData: any = { ...updates, updatedAt: new Date(now) };
+      if (updates.startTime !== undefined) prismaData.startTime = new Date(updates.startTime);
+      if (updates.endTime !== undefined) prismaData.endTime = new Date(updates.endTime);
+
+      prisma.meeting
+        .update({
+          where: { id },
+          data: prismaData,
+        })
+        .catch(() => {});
+    }
+
+    return this.data.meetings[index];
+  }
+
+  public deleteMeeting(id: string): boolean {
+    const index = this.data.meetings.findIndex((m) => m.id === id);
+    if (index === -1) return false;
+    this.data.meetings.splice(index, 1);
+
+    if (prisma && this.isPrismaActive) {
+      prisma.meeting
+        .delete({ where: { id } })
+        .catch(() => {});
+    }
+
+    return true;
   }
 
   // --- CHAT ACCESSIBILITY ---

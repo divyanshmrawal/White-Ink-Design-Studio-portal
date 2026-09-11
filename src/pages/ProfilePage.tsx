@@ -214,7 +214,7 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Role Permissions Matrix */}
-      {user?.role !== 'CLIENT' && (
+      {user?.role !== 'CLIENT' && user?.role !== 'CLIENT_ADMIN' && (
         <div className="bg-card rounded-xl border border-gold-200 shadow-xs p-6 space-y-4">
           <h3 className="text-sm font-bold text-heading flex items-center gap-2">
             <Shield className="h-4 w-4 text-gold-600" />
@@ -335,6 +335,7 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Change Password Card */}
+      {user?.role !== 'CLIENT' && user?.role !== 'CLIENT_ADMIN' && (
       <div className="bg-card rounded-xl border border-gold-200 shadow-xs">
         <div className="px-6 py-4 border-b border-gold-200">
           <h2 className="text-sm font-bold text-black flex items-center gap-2">
@@ -449,6 +450,7 @@ export const ProfilePage: React.FC = () => {
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 };

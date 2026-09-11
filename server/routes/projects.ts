@@ -1,7 +1,16 @@
 import { Router, Response } from 'express';
 import PDFDocument from 'pdfkit';
+import multer from 'multer';
 import { db, ProjectStatus, ProjectPriority } from '../db.ts';
 import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
+import { ensureProjectFolderStructure, uploadFileToDrive, deleteDriveFile } from '../services/google/drive.ts';
+import { createGoogleMeeting } from '../services/google/calendar.ts';
+import { sendClientProjectConfirmationEmail, sendProjectStatusChangedEmail } from '../email.ts';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
 
 function escapeCsv(val: unknown): string {
   if (val === null || val === undefined) return '';
@@ -212,28 +221,25 @@ projectsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respons
 });
 
 // POST /api/projects/client-request (CLIENT or CLIENT_ADMIN)
-projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLIENT_ADMIN']), (req: AuthenticatedRequest, res: Response) => {
+projectsRouter.post('/client-request', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
+
+  if (currentUser.role !== 'CLIENT' && currentUser.role !== 'CLIENT_ADMIN') {
+    return res.status(403).json({ message: 'Forbidden: Only clients can submit project requests.' });
+  }
+
   try {
-    const currentUser = req.user!;
     const { name, description, startDate, dueDate, estimatedBudget, leadOwnerId, preferredMeetingTime } = req.body;
 
-    if (!name?.trim() || !description?.trim() || !startDate || !dueDate || !leadOwnerId || !preferredMeetingTime) {
-      return res.status(400).json({ message: 'Project name, description, start date, end date, lead owner, and preferred meeting time are required.' });
+    if (!name?.trim() || !description?.trim() || !startDate || !dueDate || !preferredMeetingTime) {
+      return res.status(400).json({ message: 'Project name, description, start date, due date, and preferred meeting time are required.' });
     }
 
-    // Resolve client record tied directly to this client account
+    // Resolve or create Client record for this client user
     let clientRecord = currentUser.clientId ? db.getClientById(currentUser.clientId) : null;
     if (!clientRecord) {
-      clientRecord = db.getClients().find(
-        (c) => c.email.toLowerCase() === currentUser.email.toLowerCase() || c.id === currentUser.id
-      );
-    }
-
-    if (!clientRecord) {
-      const existingClientByEmail = db.getClientByEmail(currentUser.email);
-      if (existingClientByEmail) {
-        clientRecord = existingClientByEmail;
-      } else {
+      clientRecord = db.getClients().find((c) => c.email.toLowerCase() === currentUser.email.toLowerCase()) || null;
+      if (!clientRecord) {
         clientRecord = db.createClient({
           id: `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           name: currentUser.name,
@@ -245,8 +251,8 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLI
 
     const resolvedClientId = clientRecord.id;
 
-    const leadOwner = db.getUserById(leadOwnerId);
-    if (!leadOwner) {
+    const leadOwner = leadOwnerId ? db.getUserById(leadOwnerId) : null;
+    if (leadOwnerId && !leadOwner) {
       return res.status(400).json({ message: 'Selected lead owner not found.' });
     }
 
@@ -265,9 +271,34 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLI
       preferredMeetingTime,
     });
 
-    db.addProjectMember(newProject.id, leadOwnerId);
+    if (leadOwnerId) db.addProjectMember(newProject.id, leadOwnerId);
 
-    const meetingLink = db.getMeetingLink();
+    // Automation: Google Drive folder structure (async non-blocking)
+    ensureProjectFolderStructure({
+      id: newProject.id,
+      name: newProject.name,
+      clientId: newProject.clientId,
+    }).catch((err) => console.warn('[DRIVE] Client project folder setup skipped/failed:', err?.message));
+
+    // Automation: Google Calendar & dynamic Google Meet generation
+    let dynamicMeetLink: string | null = null;
+    try {
+      const startTime = new Date(preferredMeetingTime).toISOString();
+      const endTime = new Date(new Date(preferredMeetingTime).getTime() + 60 * 60 * 1000).toISOString();
+      const meetingRes = await createGoogleMeeting({
+        projectId: newProject.id,
+        title: `Kick-off: ${newProject.name}`,
+        description: `Project kick-off meeting for ${newProject.name} with ${currentUser.name} (${clientRecord?.company || 'Client'})`,
+        startTime,
+        endTime,
+        attendeeEmails: [currentUser.email, leadOwner?.email].filter(Boolean),
+      });
+      dynamicMeetLink = meetingRes.meetLink || null;
+    } catch (meetErr: any) {
+      console.warn('[CALENDAR] Dynamic Google Meet creation unavailable, using fallback:', meetErr?.message);
+    }
+
+    const meetingLink = dynamicMeetLink || db.getMeetingLink();
     const meetingTime = new Date(preferredMeetingTime).toLocaleString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -280,6 +311,18 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLI
 
     const clientCompany = clientRecord?.company || 'your organization';
 
+    // Automation: Transactional confirmation email via Gmail (or console/log fallback)
+    sendClientProjectConfirmationEmail({
+      toEmail: currentUser.email,
+      clientName: currentUser.name,
+      projectName: newProject.name,
+      projectDescription: newProject.description,
+      preferredMeetingTime,
+      meetingLink: meetingLink || '',
+      leadOwnerName: leadOwner?.name || 'Our Team',
+      companyName: clientCompany,
+    }).catch((emailErr) => console.warn('[EMAIL] Automated confirmation email error:', emailErr?.message));
+
     // Notify client (confirmation in-app notification)
     db.createNotification({
       id: `notif_${Date.now()}_cr1`,
@@ -291,16 +334,18 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLI
       isRead: false,
     });
 
-    // Notify assigned Lead Owner
-    db.createNotification({
-      id: `notif_${Date.now()}_cr2`,
-      userId: leadOwnerId,
-      title: 'New Client Project Request',
-      message: `${currentUser.name} (${clientCompany}) submitted a new project request: "${newProject.name}". Preferred meeting: ${meetingTime}.`,
-      type: 'PROJECT_ASSIGNED',
-      linkUrl: `/projects/${newProject.id}`,
-      isRead: false,
-    });
+    // Notify assigned Lead Owner (only if one was provided)
+    if (leadOwner) {
+      db.createNotification({
+        id: `notif_${Date.now()}_cr2`,
+        userId: leadOwnerId,
+        title: 'New Client Project Request',
+        message: `${currentUser.name} (${clientCompany}) submitted a new project request: "${newProject.name}". Preferred meeting: ${meetingTime}.`,
+        type: 'PROJECT_ASSIGNED',
+        linkUrl: `/projects/${newProject.id}`,
+        isRead: false,
+      });
+    }
 
     // Notify internal team Admins
     const admins = db.getUsers().filter((u) => u.role === 'SUPER_ADMIN' || u.role === 'ADMIN');
@@ -310,7 +355,7 @@ projectsRouter.post('/client-request', requireAuth, requireRoles(['CLIENT', 'CLI
         id: `notif_${Date.now()}_cr3_${admin.id}`,
         userId: admin.id,
         title: 'New Client Project Request',
-        message: `${currentUser.name} (${clientCompany}) submitted a new project request: "${newProject.name}". Lead: ${leadOwner.name}.`,
+        message: `${currentUser.name} (${clientCompany}) submitted a new project request: "${newProject.name}".${leadOwner ? ` Lead: ${leadOwner.name}.` : ' Awaiting lead assignment.'}`,
         type: 'GENERAL',
         linkUrl: `/projects/${newProject.id}`,
         isRead: false,
@@ -374,6 +419,13 @@ projectsRouter.post('/', requireAuth, (req: AuthenticatedRequest, res: Response)
       });
     }
 
+    // Automation: Google Drive folder structure (async non-blocking)
+    ensureProjectFolderStructure({
+      id: newProject.id,
+      name: newProject.name,
+      clientId: newProject.clientId,
+    }).catch((err) => console.warn('[DRIVE] Admin project folder setup skipped/failed:', err?.message));
+
     return res.status(201).json(newProject);
   } catch (error: any) {
     console.error('Error creating project:', error);
@@ -419,6 +471,23 @@ projectsRouter.patch('/:id', requireAuth, (req: AuthenticatedRequest, res: Respo
     }
 
     const updated = db.updateProject(id, updates);
+
+    // If project status changed, dispatch transactional email to client
+    if (status && status !== existing.status) {
+      const client = db.getClientById(updated.clientId);
+      if (client?.email) {
+        sendProjectStatusChangedEmail({
+          toEmail: client.email,
+          recipientName: client.name || 'Valued Client',
+          projectName: updated.name,
+          oldStatus: existing.status,
+          newStatus: status,
+          projectId: updated.id,
+          note: handoverNote || description || undefined,
+        }).catch((err) => console.warn('[EMAIL] Project status change email failed:', err?.message));
+      }
+    }
+
     return res.json(updated);
   } catch (error: any) {
     console.error('Error updating project:', error);
@@ -490,13 +559,14 @@ projectsRouter.delete('/:id/members/:userId', requireAuth, requireRoles(['SUPER_
 });
 
 // POST /api/projects/:id/handover-docs (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER)
-projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+projectsRouter.post('/:id/handover-docs', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const currentUser = req.user!;
     const { id } = req.params;
     const { name, size, type, dataUrl, note } = req.body;
 
-    if (!name) {
+    const docName = req.file?.originalname || (typeof name === 'string' ? name.trim() : '');
+    if (!docName) {
       return res.status(400).json({ message: 'Document name is required.' });
     }
 
@@ -512,15 +582,69 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
     const isAdmin = currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'ADMIN';
     const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
 
-    if (!isAdmin && !isMember && currentUser.role !== 'CLIENT' && currentUser.role !== 'CLIENT_ADMIN') {
+    let isAuthorized = false;
+    if (isAdmin) {
+      isAuthorized = true;
+    } else if (currentUser.role === 'TEAM_MEMBER') {
+      isAuthorized = isMember || project.createdById === currentUser.id;
+    } else if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
+      const client = db.getClientById(project.clientId);
+      isAuthorized = Boolean(
+        (currentUser.clientId && client && client.id === currentUser.clientId) ||
+        (client && client.email.toLowerCase() === currentUser.email.toLowerCase()) ||
+        project.clientId === currentUser.id ||
+        project.createdById === currentUser.id
+      );
+    }
+
+    if (!isAuthorized) {
       return res.status(403).json({ message: 'Forbidden: You cannot upload handover documents for this project.' });
     }
 
+    let finalDataUrl: string | null = dataUrl || null;
+    let fileBuffer: Buffer | null = req.file?.buffer || null;
+    let mimeType = req.file?.mimetype || type || 'application/octet-stream';
+
+    // If dataUrl is provided as base64, parse buffer for Drive upload
+    if (!fileBuffer && typeof dataUrl === 'string' && dataUrl.startsWith('data:')) {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        mimeType = match[1];
+        fileBuffer = Buffer.from(match[2], 'base64');
+      }
+    }
+
+    // Upload to Google Drive Handover subfolder if buffer is present
+    if (fileBuffer) {
+      try {
+        const hierarchy = await ensureProjectFolderStructure({
+          id: project.id,
+          name: project.name,
+          clientId: project.clientId,
+          driveFolderId: project.driveFolderId,
+        });
+        const targetFolderId = hierarchy.structure?.subfolders.handover || hierarchy.structure?.projectFolderId;
+        if (targetFolderId) {
+          const uploadResult = await uploadFileToDrive({
+            filename: docName,
+            mimeType,
+            buffer: fileBuffer,
+            folderId: targetFolderId,
+          });
+          if (uploadResult.success && uploadResult.fileId) {
+            finalDataUrl = `/api/google/files/${uploadResult.fileId}/view`;
+          }
+        }
+      } catch (driveErr: any) {
+        console.warn('[DRIVE] Handover file upload to Google Drive skipped/failed:', driveErr?.message);
+      }
+    }
+
     const newDoc = db.addHandoverDoc(id, {
-      name: name.trim(),
-      size: size || '1.0 MB',
-      type: type || 'application/octet-stream',
-      dataUrl: dataUrl || null,
+      name: docName,
+      size: size || (req.file ? `${(req.file.size / (1024 * 1024)).toFixed(1)} MB` : '1.0 MB'),
+      type: mimeType,
+      dataUrl: finalDataUrl,
       uploadedById: currentUser.id,
       uploadedByName: currentUser.name,
       note: note ? note.trim() : null,
@@ -533,7 +657,7 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
       action: 'HANDOVER_DOC_UPLOADED',
       entityType: 'PROJECT',
       entityId: id,
-      details: JSON.stringify({ documentName: name, projectId: id }),
+      details: JSON.stringify({ documentName: docName, projectId: id }),
     });
 
     // Notify client and admins
@@ -544,7 +668,7 @@ projectsRouter.post('/:id/handover-docs', requireAuth, (req: AuthenticatedReques
         id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         userId: clientUser.id,
         title: 'New Handover Document Available',
-        message: `${currentUser.name} uploaded handover documentation for "${project.name}": ${name}`,
+        message: `${currentUser.name} uploaded handover documentation for "${project.name}": ${docName}`,
         type: 'PROJECT_ASSIGNED',
         linkUrl: `/projects/${id}`,
         isRead: false,
@@ -601,7 +725,7 @@ projectsRouter.patch('/:id/complete', requireAuth, requireRoles(['SUPER_ADMIN', 
 });
 
 // DELETE /api/projects/:id/handover-docs/:docId (SUPER_ADMIN, ADMIN, or assigned TEAM_MEMBER)
-projectsRouter.delete('/:id/handover-docs/:docId', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+projectsRouter.delete('/:id/handover-docs/:docId', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const currentUser = req.user!;
     const { id, docId } = req.params;
@@ -616,6 +740,22 @@ projectsRouter.delete('/:id/handover-docs/:docId', requireAuth, (req: Authentica
 
     if (!isAdmin && !isMember) {
       return res.status(403).json({ message: 'Forbidden: You cannot delete handover documents.' });
+    }
+
+    // Check if doc exists and has a Drive fileId to delete
+    if (project.handoverDocs) {
+      try {
+        const parsedDocs = JSON.parse(project.handoverDocs);
+        const targetDoc = parsedDocs.find((d: any) => d.id === docId);
+        if (targetDoc?.dataUrl && targetDoc.dataUrl.includes('/api/google/files/')) {
+          const match = targetDoc.dataUrl.match(/\/api\/google\/files\/([a-zA-Z0-9_-]+)\/view/);
+          if (match && match[1]) {
+            await deleteDriveFile(match[1]).catch(() => {});
+          }
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
     }
 
     const success = db.deleteHandoverDoc(id, docId);
@@ -678,6 +818,12 @@ projectsRouter.get('/:id/audit-report', requireAuth, (req: AuthenticatedRequest,
       const clientMatch = client && ((currentUser.clientId && client.id === currentUser.clientId) || client.email.toLowerCase() === currentUser.email.toLowerCase() || client.id === currentUser.id);
       if (!isCreator && !clientMatch) {
         return res.status(403).json({ message: 'Forbidden: Access to this project is restricted.' });
+      }
+    } else if (currentUser.role === 'TEAM_MEMBER') {
+      const isMember = db.getProjectMembers(id).some((pm) => pm.userId === currentUser.id);
+      const hasAssignedTask = db.getTasks().some((t) => t.projectId === id && t.assignedToId === currentUser.id);
+      if (!isMember && !hasAssignedTask && project.createdById !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You are not assigned to this project.' });
       }
     }
 

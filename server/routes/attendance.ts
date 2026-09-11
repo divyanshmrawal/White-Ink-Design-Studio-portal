@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { db, AttendanceStatus, getTodayDateString } from '../db.ts';
 import { requireAuth, requireRoles, AuthenticatedRequest } from '../auth.ts';
+import { syncAttendanceToSheet } from '../services/google/sheets.ts';
 
 export const attendanceRouter = Router();
 
@@ -19,6 +20,8 @@ attendanceRouter.post('/clock-in', (req: AuthenticatedRequest, res: Response) =>
     const userId = req.user!.id;
     const { timestamp } = req.body || {};
     const attendance = db.clockIn(userId, timestamp);
+    // Background Google Sheets sync (non-blocking)
+    syncAttendanceToSheet(attendance.id).catch((err) => console.warn('[SHEETS] Sync on clock-in skipped/failed:', err?.message));
     return res.status(200).json({
       message: 'Clocked in successfully.',
       attendance,
@@ -34,6 +37,8 @@ attendanceRouter.post('/clock-out', (req: AuthenticatedRequest, res: Response) =
     const userId = req.user!.id;
     const { timestamp } = req.body || {};
     const attendance = db.clockOut(userId, timestamp);
+    // Background Google Sheets sync (non-blocking)
+    syncAttendanceToSheet(attendance.id).catch((err) => console.warn('[SHEETS] Sync on clock-out skipped/failed:', err?.message));
     return res.status(200).json({
       message: 'Clocked out successfully.',
       attendance,
@@ -64,6 +69,8 @@ attendanceRouter.post('/break/end', (req: AuthenticatedRequest, res: Response) =
     const userId = req.user!.id;
     const { timestamp } = req.body || {};
     const attendance = db.endBreak(userId, timestamp);
+    // Background Google Sheets sync (non-blocking)
+    syncAttendanceToSheet(attendance.id).catch((err) => console.warn('[SHEETS] Sync on break-end skipped/failed:', err?.message));
     return res.status(200).json({
       message: 'Break ended.',
       attendance,
@@ -196,6 +203,8 @@ attendanceRouter.put('/:id', requireRoles(['SUPER_ADMIN', 'ADMIN']), (req: Authe
     if (!updated) {
       return res.status(404).json({ message: 'Attendance record not found.' });
     }
+    // Background Google Sheets sync (non-blocking)
+    syncAttendanceToSheet(updated.id).catch((err) => console.warn('[SHEETS] Sync on admin update skipped/failed:', err?.message));
     return res.status(200).json({ message: 'Attendance record updated.', attendance: updated });
   } catch (err: any) {
     return res.status(400).json({ message: err.message || 'Failed to update attendance record.' });
@@ -221,6 +230,8 @@ attendanceRouter.post('/admin-create', requireRoles(['SUPER_ADMIN', 'ADMIN']), (
       effectiveWorkingMinutes: effectiveWorkingMinutes || 0,
     }, req.user!.id);
 
+    // Background Google Sheets sync (non-blocking)
+    syncAttendanceToSheet(created.id).catch((err) => console.warn('[SHEETS] Sync on admin create skipped/failed:', err?.message));
     return res.status(201).json({ message: 'Attendance record created.', attendance: created });
   } catch (err: any) {
     return res.status(400).json({ message: err.message || 'Failed to create attendance record.' });

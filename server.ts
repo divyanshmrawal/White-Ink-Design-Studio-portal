@@ -25,6 +25,8 @@ import { settingsRouter } from './server/routes/settings.ts';
 import { pushRouter } from './server/routes/push.ts';
 import { accessRequestsRouter } from './server/routes/access-requests.ts';
 import { credentialsRouter } from './server/routes/credentials.ts';
+import { googleRouter } from './server/routes/google.ts';
+import { meetingsRouter } from './server/routes/meetings.ts';
 
 async function startServer() {
   // Initialize database
@@ -64,6 +66,8 @@ async function startServer() {
   app.use('/api/chat', chatRouter);
   app.use('/api/settings', settingsRouter);
   app.use('/api/push', pushRouter);
+  app.use('/api/google', googleRouter);
+  app.use('/api', meetingsRouter);
 
   // Serve Firebase messaging service worker with root service-worker scope
   app.get('/firebase-messaging-sw.js', (req, res) => {

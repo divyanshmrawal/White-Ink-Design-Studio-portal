@@ -1,6 +1,18 @@
 import { Router, Response } from 'express';
 import { db, TaskStatus, TaskPriority } from '../db.ts';
 import { requireAuth, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
+import multer from 'multer';
+import { uploadFileToDrive, ensureProjectFolderStructure } from '../services/google/drive.ts';
+import {
+  sendTaskSubmittedForReviewEmail,
+  sendRevisionRequestedEmail,
+  sendApprovalDecisionEmail,
+} from '../email.ts';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
 
 export const tasksRouter = Router();
 
@@ -99,6 +111,12 @@ tasksRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) 
     if (!client || ((!currentUser.clientId || client.id !== currentUser.clientId) && client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id)) {
       return res.status(403).json({ message: 'Forbidden: Access to this task is restricted.' });
     }
+  } else if (currentUser.role === 'TEAM_MEMBER') {
+    const isAssigned = task.assignedToId === currentUser.id;
+    const isProjectMember = db.getProjectMembers(task.projectId).some((pm) => pm.userId === currentUser.id);
+    if (!isAssigned && !isProjectMember && task.createdById !== currentUser.id && project.createdById !== currentUser.id) {
+      return res.status(403).json({ message: 'Forbidden: Access to this task is restricted.' });
+    }
   }
 
   const assignedTo = task.assignedToId ? db.getUserById(task.assignedToId) : null;
@@ -141,6 +159,13 @@ tasksRouter.post('/', requireAuth, (req: AuthenticatedRequest, res: Response) =>
     const project = db.getProjectById(projectId);
     if (!project) {
       return res.status(400).json({ message: 'Referenced project does not exist.' });
+    }
+
+    if (currentUser.role === 'TEAM_MEMBER') {
+      const isProjectMember = db.getProjectMembers(projectId).some((pm) => pm.userId === currentUser.id);
+      if (!isProjectMember && project.createdById !== currentUser.id) {
+        return res.status(403).json({ message: 'Forbidden: You can only create tasks in projects you are assigned to.' });
+      }
     }
 
     const newTask = db.createTask({
@@ -240,8 +265,15 @@ tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res:
   if (!project) return res.status(404).json({ message: 'Project not found.' });
 
   const client = db.getClientById(project.clientId);
-  if (!client || (client.email.toLowerCase() !== currentUser.email.toLowerCase() && client.id !== currentUser.id)) {
-    return res.status(403).json({ message: 'Forbidden.' });
+  const isClientOwner = Boolean(
+    client &&
+    ((currentUser.clientId && client.id === currentUser.clientId) ||
+      client.email.toLowerCase() === currentUser.email.toLowerCase() ||
+      client.id === currentUser.id ||
+      project.createdById === currentUser.id)
+  );
+  if (!isClientOwner) {
+    return res.status(403).json({ message: 'Forbidden: You cannot request revisions for this task.' });
   }
 
   const revisionRequest = {
@@ -295,6 +327,21 @@ tasksRouter.patch('/:id/revision', requireAuth, (req: AuthenticatedRequest, res:
     });
   }
 
+  // Dispatch transactional email to assigned employee
+  const assignedUser = task.assignedToId ? db.getUserById(task.assignedToId) : null;
+  if (assignedUser?.email) {
+    sendRevisionRequestedEmail({
+      toEmail: assignedUser.email,
+      teamMemberName: assignedUser.name,
+      taskTitle: task.title,
+      projectName: project.name,
+      clientName: currentUser.name,
+      feedback: feedback.trim(),
+      priority: revisionRequest.priority,
+      targetDate: revisionRequest.targetDate,
+    }).catch((emailErr) => console.warn('[EMAIL] Revision request email dispatch failed:', emailErr?.message));
+  }
+
   return res.json({ ...updated, revisionRequest });
 });
 
@@ -318,7 +365,14 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
     return res.status(404).json({ message: 'Associated project not found.' });
   }
   const client = db.getClientById(project.clientId);
-  if (!client || client.email.toLowerCase() !== currentUser.email.toLowerCase()) {
+  const isClientOwner = Boolean(
+    client &&
+    ((currentUser.clientId && client.id === currentUser.clientId) ||
+      client.email.toLowerCase() === currentUser.email.toLowerCase() ||
+      client.id === currentUser.id ||
+      project.createdById === currentUser.id)
+  );
+  if (!isClientOwner) {
     return res.status(403).json({ message: 'Forbidden: This task does not belong to your project.' });
   }
 
@@ -365,6 +419,18 @@ tasksRouter.patch('/:id/approve', requireAuth, (req: AuthenticatedRequest, res: 
       linkUrl: `/projects/${task.projectId}`,
       isRead: false,
     });
+
+    const assignedUser = db.getUserById(task.assignedToId);
+    if (assignedUser?.email) {
+      sendApprovalDecisionEmail({
+        toEmail: assignedUser.email,
+        recipientName: assignedUser.name,
+        itemTitle: task.title,
+        projectName: project.name,
+        decision: 'APPROVED',
+        clientName: currentUser.name,
+      }).catch((emailErr) => console.warn('[EMAIL] Task approval email dispatch failed:', emailErr?.message));
+    }
   }
 
   const projectTasks = db.getTasks().filter((projectTask) => projectTask.projectId === task.projectId);
@@ -454,8 +520,8 @@ tasksRouter.patch('/:id/progress', requireAuth, (req: AuthenticatedRequest, res:
   return res.json(updated);
 });
 
-// POST /api/tasks/:id/submit — assigned team member submits completed work for client review
-tasksRouter.post('/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+// POST /api/tasks/:id/submit — assigned team member submits completed work for client review (supports optional file upload to Google Drive)
+tasksRouter.post('/:id/submit', requireAuth, upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
   const currentUser = req.user!;
   const { id } = req.params;
   const { submissionDescription, proofDetails, deliverableUrl } = req.body;
@@ -479,19 +545,79 @@ tasksRouter.post('/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Re
   }
 
   const project = db.getProjectById(task.projectId);
+  const isRevisionSubmission = task.status === 'REVISION_REQUESTED' || Boolean(task.revisionRequest);
+
+  // Handle uploaded file if present
+  let driveFileId: string | null = null;
+  let driveFileName: string | null = null;
+  let driveFileSize: number | null = null;
+  let driveFileMimeType: string | null = null;
+  let fileDeliverableUrl: string | null = null;
+
+  if (req.file) {
+    driveFileName = req.file.originalname;
+    driveFileSize = req.file.size;
+    driveFileMimeType = req.file.mimetype;
+
+    try {
+      if (project) {
+        const hierarchy = await ensureProjectFolderStructure({
+          id: project.id,
+          name: project.name,
+          clientId: project.clientId,
+          driveFolderId: project.driveFolderId,
+        });
+        const targetFolderId = isRevisionSubmission
+          ? (hierarchy.structure?.subfolders.revisions || hierarchy.structure?.projectFolderId)
+          : (hierarchy.structure?.subfolders.proofs || hierarchy.structure?.projectFolderId);
+
+        if (targetFolderId) {
+          const uploadResult = await uploadFileToDrive({
+            filename: req.file.originalname,
+            mimeType: req.file.mimetype,
+            buffer: req.file.buffer,
+            folderId: targetFolderId,
+          });
+          if (uploadResult.success && uploadResult.fileId) {
+            driveFileId = uploadResult.fileId;
+            fileDeliverableUrl = `/api/google/files/${uploadResult.fileId}/view`;
+          }
+        }
+      }
+    } catch (driveErr: any) {
+      console.warn('[DRIVE] Task file upload to Google Drive skipped/failed:', driveErr?.message);
+    }
+  }
+
   const submittedAt = new Date().toISOString();
   const updated = db.updateTask(id, {
     status: 'REVIEW',
     clientApprovalStatus: 'PENDING',
     submissionDescription: submissionDescription.trim(),
     proofDetails: proofDetails.trim(),
-    deliverableUrl: deliverableUrl?.trim() || null,
+    deliverableUrl: deliverableUrl?.trim() || fileDeliverableUrl || null,
+    driveFileId: driveFileId || undefined,
+    driveFileName: driveFileName || undefined,
+    driveFileSize: driveFileSize || undefined,
+    driveFileMimeType: driveFileMimeType || undefined,
     submittedById: currentUser.id,
     submittedAt,
     clientReviewComments: null,
     reviewedById: null,
     reviewedAt: null,
     revisionRequest: null,
+  });
+
+  // Log activity to maintain complete history
+  db.logActivity({
+    id: `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    userId: currentUser.id,
+    action: isRevisionSubmission ? 'TASK_REVISION_SUBMITTED' : 'TASK_SUBMITTED',
+    entityType: 'TASK',
+    entityId: id,
+    details: isRevisionSubmission
+      ? `Submitted revised work for task "${task.title}"`
+      : `Submitted task proof for "${task.title}"`,
   });
 
   if (project) {
@@ -501,12 +627,21 @@ tasksRouter.post('/:id/submit', requireAuth, (req: AuthenticatedRequest, res: Re
       db.createNotification({
         id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         userId: clientUser.id,
-        title: 'Task Submitted for Approval',
-        message: `Task "${task.title}" is ready for your review.`,
+        title: isRevisionSubmission ? 'Task Revision Submitted for Approval' : 'Task Submitted for Approval',
+        message: `Task "${task.title}" has been submitted for review.`,
         type: 'APPROVAL_REQUESTED',
         linkUrl: `/projects/${task.projectId}`,
         isRead: false,
       });
+
+      sendTaskSubmittedForReviewEmail({
+        toEmail: clientUser.email,
+        clientName: clientUser.name,
+        taskTitle: task.title,
+        projectName: project.name,
+        submissionDescription: submissionDescription.trim(),
+        deliverableUrl: deliverableUrl?.trim() || fileDeliverableUrl || null,
+      }).catch((emailErr) => console.warn('[EMAIL] Task submission review email dispatch failed:', emailErr?.message));
     }
   }
 

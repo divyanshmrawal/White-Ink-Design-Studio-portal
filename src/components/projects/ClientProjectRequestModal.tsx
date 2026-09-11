@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { User } from '../../types';
 import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import {
   Briefcase,
   CheckCircle2,
@@ -38,6 +39,9 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const isClient = user?.role === 'CLIENT' || user?.role === 'CLIENT_ADMIN';
+
   const [confirmationData, setConfirmationData] = useState<{
     message: string;
     meetingLink: string | null;
@@ -116,7 +120,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
       setError('End date is required.');
       return;
     }
-    if (!leadOwnerId) {
+    if (!isClient && !leadOwnerId) {
       setError('Please assign a lead owner.');
       return;
     }
@@ -135,7 +139,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
         startDate: new Date(startDate).toISOString(),
         dueDate: new Date(endDate).toISOString(),
         estimatedBudget: estimatedBudget ? Number(estimatedBudget) : undefined,
-        leadOwnerId,
+        ...(leadOwnerId ? { leadOwnerId } : {}),
         preferredMeetingTime: new Date(preferredMeetingTime).toISOString(),
       });
 
@@ -337,6 +341,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
           </div>
 
           {/* SECTION 3: PROJECT OWNERSHIP */}
+          {!isClient && (
           <div className="space-y-3.5">
             <div className="flex items-center gap-2">
               <span className="w-1 h-3.5 bg-[#8E7028] rounded-xs inline-block" />
@@ -444,6 +449,7 @@ export const ClientProjectRequestModal: React.FC<ClientProjectRequestModalProps>
               </div>
             </div>
           </div>
+          )}
 
           {/* SECTION 4: MEETING PREFERENCE (New Required Section) */}
           <div className="space-y-3.5">

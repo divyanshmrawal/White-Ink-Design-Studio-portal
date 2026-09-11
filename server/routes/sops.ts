@@ -5,6 +5,12 @@ import { requireAuth, requireRoles, AuthenticatedRequest } from '../auth.ts';
 export const sopsRouter = Router();
 
 sopsRouter.use(requireAuth);
+sopsRouter.use((req: AuthenticatedRequest, res: Response, next) => {
+  if (req.user?.role === 'CLIENT' || req.user?.role === 'CLIENT_ADMIN') {
+    return res.status(403).json({ message: 'Forbidden: Standard Operating Procedures are for internal staff only.' });
+  }
+  next();
+});
 
 // GET / - List all SOPs with optional category and search filters
 sopsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {

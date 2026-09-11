@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { db } from '../db.ts';
-import { requireAuth, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
+import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
 
 export const dashboardRouter = Router();
 
@@ -144,8 +144,8 @@ dashboardRouter.get('/recent-tasks', requireAuth, (req: AuthenticatedRequest, re
   return res.json(recentTasks);
 });
 
-// POST /api/dashboard/reset-seed (Super Admin or convenience dev reset)
-dashboardRouter.post('/reset-seed', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+// POST /api/dashboard/reset-seed (SUPER_ADMIN only)
+dashboardRouter.post('/reset-seed', requireAuth, requireRoles(['SUPER_ADMIN']), async (req: AuthenticatedRequest, res: Response) => {
   try {
     await db.resetToSeed();
     return res.json({ message: 'Database reset to initial demo state successfully.' });

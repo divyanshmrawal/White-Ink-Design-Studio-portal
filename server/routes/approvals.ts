@@ -1,6 +1,14 @@
 import { Router, Response } from 'express';
+import multer from 'multer';
 import { db, ApprovalStatus } from '../db.ts';
 import { requireAuth, requireRoles, AuthenticatedRequest, sanitizeUser } from '../auth.ts';
+import { uploadFileToDrive, ensureProjectFolderStructure } from '../services/google/drive.ts';
+import { sendTaskSubmittedForReviewEmail, sendApprovalDecisionEmail } from '../email.ts';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+});
 
 export const approvalsRouter = Router();
 
@@ -75,13 +83,46 @@ approvalsRouter.get('/', requireAuth, (req: AuthenticatedRequest, res: Response)
   return res.json(enriched);
 });
 
+// Helper to verify user authorization for a project's approvals
+function isUserAuthorizedForProject(user: any, projectId: string): boolean {
+  if (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') return true;
+
+  const project = db.getProjectById(projectId);
+  if (!project) return false;
+
+  if (user.role === 'TEAM_MEMBER') {
+    return (
+      db.getProjectMembers(projectId).some((pm) => pm.userId === user.id) ||
+      db.getTasks().some((t) => t.projectId === projectId && t.assignedToId === user.id) ||
+      project.createdById === user.id
+    );
+  }
+
+  if (user.role === 'CLIENT' || user.role === 'CLIENT_ADMIN') {
+    const client = db.getClientById(project.clientId);
+    return Boolean(
+      (user.clientId && client && client.id === user.clientId) ||
+      (client && client.email.toLowerCase() === user.email.toLowerCase()) ||
+      project.clientId === user.id ||
+      project.createdById === user.id
+    );
+  }
+
+  return false;
+}
+
 // GET /api/approvals/:id
 approvalsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Response) => {
+  const currentUser = req.user!;
   const { id } = req.params;
   const appr = db.getApprovalById(id);
 
   if (!appr) {
     return res.status(404).json({ message: 'Approval request not found.' });
+  }
+
+  if (!isUserAuthorizedForProject(currentUser, appr.projectId)) {
+    return res.status(403).json({ message: 'Forbidden: Access to this approval request is restricted.' });
   }
 
   const project = db.getProjectById(appr.projectId);
@@ -104,11 +145,12 @@ approvalsRouter.get('/:id', requireAuth, (req: AuthenticatedRequest, res: Respon
   });
 });
 
-// POST /api/approvals - Request an approval (SUPER_ADMIN, ADMIN, TEAM_MEMBER)
+// POST /api/approvals - Request an approval / upload deliverable (SUPER_ADMIN, ADMIN, TEAM_MEMBER)
 approvalsRouter.post(
   '/',
   requireAuth,
-  (req: AuthenticatedRequest, res: Response) => {
+  upload.single('file'),
+  async (req: AuthenticatedRequest, res: Response) => {
     const currentUser = req.user!;
 
     if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
@@ -126,11 +168,47 @@ approvalsRouter.post(
       return res.status(404).json({ message: 'Associated project not found.' });
     }
 
+    // Role check: TEAM_MEMBER must belong to the project
+    if (currentUser.role === 'TEAM_MEMBER') {
+      const isMember = db.getProjectMembers(projectId).some((pm) => pm.userId === currentUser.id);
+      if (!isMember) {
+        return res.status(403).json({ message: 'You can only submit deliverables for projects you are assigned to.' });
+      }
+    }
+
+    let finalDeliverableUrl: string | null = deliverableUrl ? deliverableUrl.trim() : null;
+
+    // Handle optional uploaded deliverable file to Google Drive "Deliverables" folder
+    if (req.file) {
+      try {
+        const hierarchy = await ensureProjectFolderStructure({
+          id: project.id,
+          name: project.name,
+          clientId: project.clientId,
+          driveFolderId: project.driveFolderId,
+        });
+        const targetFolderId = hierarchy.structure?.subfolders.deliverables || hierarchy.structure?.projectFolderId;
+        if (targetFolderId) {
+          const uploadResult = await uploadFileToDrive({
+            filename: req.file.originalname,
+            mimeType: req.file.mimetype,
+            buffer: req.file.buffer,
+            folderId: targetFolderId,
+          });
+          if (uploadResult.success && uploadResult.fileId) {
+            finalDeliverableUrl = `/api/google/files/${uploadResult.fileId}/view`;
+          }
+        }
+      } catch (driveErr: any) {
+        console.warn('[DRIVE] Deliverable file upload skipped/failed:', driveErr?.message);
+      }
+    }
+
     const newApproval = db.createApproval({
       title: title.trim(),
       description: description ? description.trim() : null,
       projectId,
-      deliverableUrl: deliverableUrl ? deliverableUrl.trim() : null,
+      deliverableUrl: finalDeliverableUrl,
       status: 'PENDING',
       requestedById: currentUser.id,
       reviewedById: null,
@@ -138,7 +216,32 @@ approvalsRouter.post(
       comments: null,
     });
 
+    // Notify the client for review
     const client = db.getClientById(project.clientId);
+    const clientUser = client
+      ? db.getUsers().find((u) => u.clientId === client.id || u.email.toLowerCase() === client.email.toLowerCase())
+      : null;
+    if (clientUser) {
+      db.createNotification({
+        id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        userId: clientUser.id,
+        title: 'New Deliverable Ready for Review',
+        message: `A new deliverable "${title.trim()}" in project "${project.name}" is ready for your review.`,
+        type: 'APPROVAL_REQUESTED',
+        linkUrl: `/projects/${project.id}`,
+        isRead: false,
+      });
+
+      sendTaskSubmittedForReviewEmail({
+        toEmail: clientUser.email,
+        clientName: clientUser.name,
+        taskTitle: title.trim(),
+        projectName: project.name,
+        submissionDescription: description ? description.trim() : undefined,
+        deliverableUrl: finalDeliverableUrl,
+      }).catch((emailErr) => console.warn('[EMAIL] Deliverable review request email dispatch failed:', emailErr?.message));
+    }
+
     const enriched = {
       ...newApproval,
       project: {
@@ -174,6 +277,19 @@ approvalsRouter.put(
 
     // If client or client admin is resolving the approval:
     if (currentUser.role === 'CLIENT' || currentUser.role === 'CLIENT_ADMIN') {
+      const project = db.getProjectById(existing.projectId);
+      const client = project ? db.getClientById(project.clientId) : null;
+      const isClientOwner = Boolean(
+        client &&
+        ((currentUser.clientId && client.id === currentUser.clientId) ||
+          client.email.toLowerCase() === currentUser.email.toLowerCase() ||
+          client.id === currentUser.id ||
+          project?.createdById === currentUser.id)
+      );
+      if (!isClientOwner) {
+        return res.status(403).json({ message: 'Forbidden: You cannot review deliverables for this project.' });
+      }
+
       if (!status || !['APPROVED', 'REJECTED'].includes(status)) {
         return res.status(400).json({ message: 'Status must be APPROVED or REJECTED.' });
       }
@@ -181,6 +297,15 @@ approvalsRouter.put(
       updates.comments = comments ? comments.trim() : null;
       updates.reviewedById = currentUser.id;
       updates.reviewedAt = new Date().toISOString();
+    } else if (currentUser.role === 'TEAM_MEMBER') {
+      const isMember = db.getProjectMembers(existing.projectId).some((pm) => pm.userId === currentUser.id);
+      const isRequester = existing.requestedById === currentUser.id;
+      if (!isMember && !isRequester) {
+        return res.status(403).json({ message: 'Forbidden: You can only edit deliverables for your assigned projects.' });
+      }
+      if (title !== undefined) updates.title = title.trim();
+      if (description !== undefined) updates.description = description ? description.trim() : null;
+      if (deliverableUrl !== undefined) updates.deliverableUrl = deliverableUrl ? deliverableUrl.trim() : null;
     } else {
       // Super Admin or Admin can update all fields or approve/reject on behalf
       if (status !== undefined) {
@@ -205,6 +330,19 @@ approvalsRouter.put(
     const client = project ? db.getClientById(project.clientId) : null;
     const requestedBy = db.getUserById(updated.requestedById);
     const reviewedBy = updated.reviewedById ? db.getUserById(updated.reviewedById) : null;
+
+    // If approved or rejected, dispatch transactional email to the requester
+    if (updates.status && ['APPROVED', 'REJECTED'].includes(updates.status) && requestedBy?.email) {
+      sendApprovalDecisionEmail({
+        toEmail: requestedBy.email,
+        recipientName: requestedBy.name,
+        itemTitle: updated.title,
+        projectName: project?.name || 'Project',
+        decision: updates.status as 'APPROVED' | 'REJECTED',
+        clientName: currentUser.name,
+        comments: updates.comments,
+      }).catch((emailErr) => console.warn('[EMAIL] Deliverable sign-off email dispatch failed:', emailErr?.message));
+    }
 
     return res.json({
       ...updated,

@@ -67,6 +67,8 @@ export interface Client {
   email: string;
   phone?: string | null;
   address?: string | null;
+  driveFolderId?: string | null;
+  driveFolderUrl?: string | null;
   createdAt?: string;
   updatedAt?: string;
   projectCount?: number;
@@ -130,6 +132,9 @@ export interface Project {
   estimatedBudget?: number | null;
   leadOwnerId?: string | null;
   preferredMeetingTime?: string | null;
+  meetingLink?: string | null;
+  calendarEventId?: string | null;
+  driveFolderId?: string | null;
   handoverNote?: string | null;
   driveUrl?: string | null;
   handoverDocs?: string | null;
@@ -143,6 +148,7 @@ export interface Project {
   tasks?: Task[];
   milestones?: Milestone[];
   approvals?: ClientApproval[];
+  meetings?: Meeting[];
   comments?: Comment[];
   taskCount?: number;
   completedTaskCount?: number;
@@ -201,6 +207,10 @@ export interface Task {
   submissionDescription?: string | null;
   proofDetails?: string | null;
   deliverableUrl?: string | null;
+  driveFileId?: string | null;
+  driveFileName?: string | null;
+  driveFileSize?: number | null;
+  driveFileMimeType?: string | null;
   submittedById?: string | null;
   submittedAt?: string | null;
   clientApprovalStatus?: ApprovalStatus;
@@ -296,6 +306,8 @@ export interface Attendance {
   totalWorkingMinutes: number;
   totalBreakMinutes: number;
   effectiveWorkingMinutes: number;
+  sheetsSyncedAt?: string | null;
+  sheetsRowIndex?: number | null;
   createdAt: string;
   updatedAt: string;
   user?: User;
@@ -493,5 +505,30 @@ export interface EmployeeScheduleOverride {
   user?: User;
 }
 
+export type MeetingStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 
+export interface Meeting {
+  id: string;
+  projectId: string;
+  title: string;
+  description?: string | null;
+  startTime: string;
+  endTime: string;
+  calendarEventId?: string | null;
+  meetLink?: string | null;
+  status: MeetingStatus;
+  createdAt: string;
+  updatedAt: string;
+  project?: { id: string; name: string };
+}
 
+export interface GoogleIntegrationStatus {
+  isConnected: boolean;
+  connectedEmail?: string | null;
+  driveRootFolderId?: string | null;
+  sheetsAttendanceSpreadsheetId?: string | null;
+  sheetsAttendanceSheetName?: string | null;
+  calendarId?: string | null;
+  lastSyncAt?: string | null;
+  updatedAt?: string;
+}
